@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
 export default function CreateCapsule() {
@@ -12,7 +12,13 @@ export default function CreateCapsule() {
   })
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
-
+useEffect(() => {
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) window.location.href = '/login'
+  }
+  checkUser()
+}, [])
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }

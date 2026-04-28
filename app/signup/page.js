@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { supabase } from '../supabase'
 
 export default function Signup() {
-  const [form, setForm] = useState({ email: '', password: '', name: '' })
+  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '', name: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -12,8 +12,16 @@ export default function Signup() {
   }
 
   const handleSignup = async () => {
-    setLoading(true)
     setError('')
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+    if (form.password.length < 6) {
+      setError('Password must be at least 6 characters.')
+      return
+    }
+    setLoading(true)
     const { error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
@@ -51,6 +59,12 @@ export default function Signup() {
             <input name="password" value={form.password} onChange={handleChange} type="password"
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
               placeholder="minimum 6 characters" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+            <input name="confirmPassword" value={form.confirmPassword} onChange={handleChange} type="password"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+              placeholder="repeat your password" />
           </div>
           <button onClick={handleSignup} disabled={loading}
             className="w-full bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-xl font-medium transition">

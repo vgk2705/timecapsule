@@ -6,6 +6,7 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [resetSent, setResetSent] = useState(false)
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -22,6 +23,29 @@ export default function Login() {
     if (error) setError(error.message)
     else window.location.href = '/dashboard'
   }
+
+  const handleForgotPassword = async () => {
+    if (!form.email) {
+      setError('Please enter your email first.')
+      return
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(form.email, {
+      redirectTo: 'https://timecapsule-gules.vercel.app/reset-password'
+    })
+    if (error) setError(error.message)
+    else setResetSent(true)
+  }
+
+  if (resetSent) return (
+    <div className="min-h-screen bg-amber-50 flex items-center justify-center px-6">
+      <div className="bg-white rounded-2xl shadow-sm p-8 w-full max-w-md text-center">
+        <div className="text-5xl mb-4">📬</div>
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">Check your email</h1>
+        <p className="text-gray-400 text-sm">We sent a password reset link to <strong>{form.email}</strong>. Check your inbox!</p>
+        <a href="/login" className="inline-block mt-6 text-amber-600 hover:underline text-sm">Back to login</a>
+      </div>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-amber-50 flex items-center justify-center px-6">
@@ -44,6 +68,11 @@ export default function Login() {
             <input name="password" value={form.password} onChange={handleChange} type="password"
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
               placeholder="your password" />
+          </div>
+          <div className="text-right">
+            <button onClick={handleForgotPassword} className="text-sm text-amber-600 hover:underline">
+              Forgot password?
+            </button>
           </div>
           <button onClick={handleLogin} disabled={loading}
             className="w-full bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-xl font-medium transition">
