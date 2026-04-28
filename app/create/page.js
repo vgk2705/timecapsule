@@ -18,18 +18,21 @@ export default function CreateCapsule() {
   }
 
   const handleSubmit = async () => {
-    setLoading(true)
-    const { error } = await supabase.from('capsules').insert([{
-      recipient_name: form.recipientName,
-      recipient_email: form.recipientEmail,
-      message: form.message,
-      unlock_date: form.unlockDate,
-      status: 'locked'
-    }])
-    setLoading(false)
-    if (!error) setSubmitted(true)
-    else alert('Something went wrong. Please try again.')
+  setLoading(true)
+  const { data: { user } } = await supabase.auth.getUser()
+  const insertData = {
+    recipient_name: form.recipientName,
+    recipient_email: form.recipientEmail,
+    message: form.message,
+    unlock_date: form.unlockDate,
+    status: 'locked'
   }
+  if (user) insertData.sender_id = user.id
+  const { error } = await supabase.from('capsules').insert(insertData)
+  setLoading(false)
+  if (!error) setSubmitted(true)
+  else alert('Something went wrong. Please try again.')
+}
 
   if (submitted) return (
     <div className="min-h-screen bg-amber-50 flex items-center justify-center">
