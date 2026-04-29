@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/send-capsules",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}
