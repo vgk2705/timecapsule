@@ -8,7 +8,7 @@ export default function Home() {
           <span className="text-2xl">⏳</span>
           <span className="text-xl font-semibold text-amber-900">TimeCapsule</span>
         </div>
-        <a href="/signup" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
+        <a href="/login" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
           Get Started
         </a>
       </header>
@@ -24,7 +24,7 @@ export default function Home() {
           exactly when they need it most. On their 18th birthday. Their wedding day. Whenever you choose.
         </p>
         <div className="flex gap-4 justify-center">
-          <a href="/signup" className="bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-full text-lg font-medium transition">
+          <a href="/login" className="bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-full text-lg font-medium transition">
             Create your first capsule
           </a>
           <button className="border border-gray-300 hover:border-gray-400 text-gray-600 px-8 py-4 rounded-full text-lg transition">
