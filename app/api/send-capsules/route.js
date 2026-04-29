@@ -30,7 +30,7 @@ export async function GET(request) {
   let sent = 0
   for (const capsule of capsules) {
     const { error: emailError } = await resend.emails.send({
-      from: 'TimeCapsule <onboarding@resend.dev>',
+      from: 'TimeCapsule <hello@mytimecapsule.app>',
       to: capsule.recipient_email,
       subject: `💌 A message has been unlocked for you, ${capsule.recipient_name}!`,
       html: `
