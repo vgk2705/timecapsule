@@ -30,7 +30,7 @@ export default function Login() {
       return
     }
     const { error } = await supabase.auth.resetPasswordForEmail(form.email, {
-      redirectTo: 'https://timecapsule-gules.vercel.app/reset-password'
+      redirectTo: 'https://mytimecapsule.app/reset-password'
     })
     if (error) setError(error.message)
     else setResetSent(true)
