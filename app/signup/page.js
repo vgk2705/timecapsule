@@ -29,7 +29,7 @@ export default function Signup() {
     })
     setLoading(false)
     if (error) setError(error.message)
-    else window.location.href = '/create'
+    else window.location.href = '/dashboard'
   }
 
   return (
