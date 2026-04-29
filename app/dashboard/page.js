@@ -64,6 +64,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-500">Hi, {user?.user_metadata?.name || user?.email}</span>
+          <a href="/support" className="text-sm text-amber-600 hover:text-amber-700 font-medium">Support</a>
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">Log out</button>
         </div>
       </header>

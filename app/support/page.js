@@ -57,89 +57,113 @@ export default function SupportPage() {
     setLoading(false)
   }
 
-  const statusColors = {
-    open: 'bg-yellow-100 text-yellow-800',
-    in_progress: 'bg-blue-100 text-blue-800',
-    resolved: 'bg-green-100 text-green-800'
+  const statusConfig = {
+    open: { label: 'Open', bg: '#fef3c7', color: '#92400e' },
+    in_progress: { label: 'In Progress', bg: '#dbeafe', color: '#1e40af' },
+    resolved: { label: 'Resolved', bg: '#dcfce7', color: '#166534' }
   }
 
   return (
-    <div style={{ fontFamily: 'sans-serif', maxWidth: '700px', margin: '0 auto', padding: '40px 20px' }}>
-      <h1 style={{ color: '#b45309' }}>⏳ Support</h1>
-      <p style={{ color: '#6b7280' }}>Having an issue? Submit a ticket and we'll get back to you.</p>
-
-      {success && (
-        <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '12px 16px', marginBottom: '24px', color: '#166534' }}>
-          ✅ Ticket submitted! We'll respond to your email soon.
+    <div style={{ minHeight: '100vh', background: '#fffef0', fontFamily: 'sans-serif' }}>
+      {/* Navbar */}
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 40px', background: '#fffef0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => router.push('/')}>
+          <span style={{ fontSize: '22px' }}>⏳</span>
+          <span style={{ fontWeight: '700', fontSize: '18px', color: '#1a1a1a' }}>TimeCapsule</span>
         </div>
-      )}
-
-      <form onSubmit={handleSubmit} style={{ background: '#fffbeb', borderRadius: '12px', padding: '24px', marginBottom: '40px' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#374151' }}>Category</label>
-          <select
-            value={form.category}
-            onChange={e => setForm({ ...form, category: e.target.value })}
-            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db' }}
-          >
-            <option value="delivery_issue">Capsule not delivered</option>
-            <option value="login_problem">Login / Account issue</option>
-            <option value="edit_delete">Edit or Delete problem</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#374151' }}>Subject</label>
-          <input
-            type="text"
-            required
-            value={form.subject}
-            onChange={e => setForm({ ...form, subject: e.target.value })}
-            placeholder="Brief description of your issue"
-            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#374151' }}>Description</label>
-          <textarea
-            required
-            value={form.description}
-            onChange={e => setForm({ ...form, description: e.target.value })}
-            placeholder="Describe your issue in detail..."
-            rows={5}
-            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ background: '#b45309', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer' }}
-        >
-          {loading ? 'Submitting...' : 'Submit Ticket'}
+        <button onClick={() => router.push('/dashboard')}
+          style={{ background: '#f59e0b', color: 'white', border: 'none', borderRadius: '999px', padding: '10px 22px', fontWeight: '600', cursor: 'pointer' }}>
+          Dashboard
         </button>
-      </form>
+      </nav>
 
-      <h2 style={{ color: '#374151' }}>Your Tickets</h2>
-      {tickets.length === 0 ? (
-        <p style={{ color: '#9ca3af' }}>No tickets yet.</p>
-      ) : (
-        tickets.map(ticket => (
-          <div key={ticket.id} style={{ border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <strong style={{ color: '#1f2937' }}>{ticket.subject}</strong>
-              <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' }}
-                className={statusColors[ticket.status]}>
-                {ticket.status.replace('_', ' ').toUpperCase()}
-              </span>
+      <div style={{ maxWidth: '680px', margin: '0 auto', padding: '40px 20px' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#1a1a1a', marginBottom: '8px' }}>Support</h1>
+        <p style={{ color: '#6b7280', marginBottom: '32px' }}>Having an issue? We're here to help.</p>
+
+        {/* Form Card */}
+        <div style={{ background: 'white', borderRadius: '16px', padding: '32px', marginBottom: '40px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1a1a1a', marginBottom: '24px' }}>Submit a ticket</h2>
+
+          {success && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '10px', padding: '14px 18px', marginBottom: '24px', color: '#166534', fontWeight: '500' }}>
+              ✅ Ticket submitted! We'll respond to your email soon.
             </div>
-            <p style={{ color: '#6b7280', fontSize: '14px', margin: '8px 0 4px' }}>{ticket.description}</p>
-            <p style={{ color: '#9ca3af', fontSize: '12px' }}>{new Date(ticket.created_at).toLocaleDateString()}</p>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>Category</label>
+              <select
+                value={form.category}
+                onChange={e => setForm({ ...form, category: e.target.value })}
+                style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1.5px solid #e5e7eb', fontSize: '15px', background: 'white', outline: 'none' }}
+              >
+                <option value="delivery_issue">Capsule not delivered</option>
+                <option value="login_problem">Login / Account issue</option>
+                <option value="edit_delete">Edit or Delete problem</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>Subject</label>
+              <input
+                type="text"
+                required
+                value={form.subject}
+                onChange={e => setForm({ ...form, subject: e.target.value })}
+                placeholder="Brief description of your issue"
+                style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1.5px solid #e5e7eb', fontSize: '15px', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>Description</label>
+              <textarea
+                required
+                value={form.description}
+                onChange={e => setForm({ ...form, description: e.target.value })}
+                placeholder="Describe your issue in detail..."
+                rows={5}
+                style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1.5px solid #e5e7eb', fontSize: '15px', boxSizing: 'border-box', resize: 'vertical', outline: 'none' }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{ width: '100%', background: '#f59e0b', color: 'white', padding: '14px', borderRadius: '10px', border: 'none', fontWeight: '700', fontSize: '16px', cursor: 'pointer' }}
+            >
+              {loading ? 'Submitting...' : 'Submit Ticket'}
+            </button>
+          </form>
+        </div>
+
+        {/* Tickets List */}
+        <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1a1a1a', marginBottom: '16px' }}>Your Tickets</h2>
+        {tickets.length === 0 ? (
+          <div style={{ background: 'white', borderRadius: '16px', padding: '32px', textAlign: 'center', color: '#9ca3af', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+            No tickets submitted yet.
           </div>
-        ))
-      )}
+        ) : (
+          tickets.map(ticket => {
+            const s = statusConfig[ticket.status] || statusConfig.open
+            return (
+              <div key={ticket.id} style={{ background: 'white', borderRadius: '16px', padding: '20px 24px', marginBottom: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <strong style={{ color: '#1a1a1a', fontSize: '16px' }}>{ticket.subject}</strong>
+                  <span style={{ background: s.bg, color: s.color, padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: '700' }}>
+                    {s.label}
+                  </span>
+                </div>
+                <p style={{ color: '#6b7280', fontSize: '14px', margin: '0 0 8px' }}>{ticket.description}</p>
+                <p style={{ color: '#d1d5db', fontSize: '12px', margin: 0 }}>{new Date(ticket.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              </div>
+            )
+          })
+        )}
+      </div>
     </div>
   )
 }

@@ -8,8 +8,8 @@ export default function Home() {
           <span className="text-2xl">⏳</span>
           <span className="text-xl font-semibold text-amber-900">TimeCapsule</span>
         </div>
-        <a href="/signup" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
-          Get Started
+        <a href="/login" className="bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-full text-lg font-medium transition">
+        Create your first capsule
         </a>
       </header>
 
