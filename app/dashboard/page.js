@@ -39,10 +39,18 @@ export default function Dashboard() {
   }
 
   const handleEditSave = async (id) => {
-    await supabase.from('capsules').update({ message: editMessage }).eq('id', id)
-    setCapsules(capsules.map(c => c.id === id ? { ...c, message: editMessage } : c))
-    setEditingId(null)
-  }
+  const now = new Date().toISOString()
+  await supabase.from('capsules').update({ 
+    message: editMessage,
+    updated_at: now
+  }).eq('id', id)
+  setCapsules(capsules.map(c => c.id === id ? { 
+    ...c, 
+    message: editMessage,
+    updated_at: now
+  } : c))
+  setEditingId(null)
+}
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -138,9 +146,15 @@ export default function Dashboard() {
                     }`}>
                       {capsule.status === 'delivered' ? '✅ Delivered' : '🔒 Locked'}
                     </span>
-                    <p className="text-xs text-gray-400 mb-3">
-                      {capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} {capsule.unlock_date}
+                    <p className="text-xs text-gray-400 mb-1">
+                    {capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} {capsule.unlock_date}
                     </p>
+                    <p className="text-xs text-gray-300 mb-3">
+                    {capsule.updated_at
+                    ? `✏️ Edited ${new Date(capsule.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                    : `📅 Created ${new Date(capsule.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                     }
+                     </p>
 
                     {capsule.status === 'locked' && editingId !== capsule.id && (
                       <div className="flex gap-2 justify-end">
