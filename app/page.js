@@ -8,9 +8,14 @@ export default function Home() {
           <span className="text-2xl">⏳</span>
           <span className="text-xl font-semibold text-amber-900">TimeCapsule</span>
         </div>
-        <a href="/login" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
-          Get Started
+        <div className="flex items-center gap-4">
+        <a href="/pricing" className="text-sm text-gray-500 hover:text-gray-700 font-medium">
+        Pricing
         </a>
+        <a href="/login" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
+        Get Started
+        </a>
+        </div>
       </header>
 
       {/* Hero */}

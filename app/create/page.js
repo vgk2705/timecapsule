@@ -23,6 +23,7 @@ function calculateUnlockDate(milestone, dob) {
 
 export default function CreateCapsule() {
   const [step, setStep] = useState(1)
+  const [messageType, setMessageType] = useState('text')
   const [form, setForm] = useState({
     recipientName: '',
     recipientEmail: '',
@@ -33,6 +34,7 @@ export default function CreateCapsule() {
   })
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [wordCount, setWordCount] = useState(0)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -44,6 +46,10 @@ export default function CreateCapsule() {
 
   const handleChange = (e) => {
     const updated = { ...form, [e.target.name]: e.target.value }
+    if (e.target.name === 'message') {
+      const words = e.target.value.trim() === '' ? 0 : e.target.value.trim().split(/\s+/).length
+      setWordCount(words)
+    }
     if (e.target.name === 'recipientDob' || e.target.name === 'milestone') {
       const dob = e.target.name === 'recipientDob' ? e.target.value : form.recipientDob
       const milestone = e.target.name === 'milestone' ? e.target.value : form.milestone
@@ -162,14 +168,12 @@ export default function CreateCapsule() {
                 ))}
               </div>
 
-              {/* Show calculated date */}
               {form.unlockDate && !['graduation','custom'].includes(form.milestone) && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-center">
                   <p className="text-sm text-amber-700">📅 Will unlock on <strong>{form.unlockDate}</strong></p>
                 </div>
               )}
 
-              {/* Custom date picker */}
               {['graduation','custom'].includes(form.milestone) && (
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Choose the date</label>
@@ -190,26 +194,118 @@ export default function CreateCapsule() {
             </div>
           )}
 
-          {/* Step 3 — Write message */}
+          {/* Step 3 — Message type + content */}
           {step === 3 && (
             <div>
               <div className="text-3xl mb-2">✍️</div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-1">Write your message</h1>
-              <p className="text-gray-400 text-sm mb-8">This will be delivered to {form.recipientName} on {form.unlockDate}.</p>
-              <div className="space-y-5">
-                <textarea name="message" value={form.message} onChange={handleChange} rows={8}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  placeholder="Write something from your heart..." />
-                <div className="flex gap-3">
-                  <button onClick={() => setStep(2)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300">
-                    ← Back
+              <h1 className="text-2xl font-bold text-gray-800 mb-1">Your message</h1>
+              <p className="text-gray-400 text-sm mb-6">
+                This will be delivered to {form.recipientName} on {form.unlockDate}.
+              </p>
+
+              {/* Message type tabs */}
+              <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-xl">
+                {[
+                  { id: 'text', emoji: '📝', label: 'Text' },
+                  { id: 'audio', emoji: '🎵', label: 'Audio' },
+                  { id: 'video', emoji: '🎥', label: 'Video' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setMessageType(tab.id)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition ${
+                      messageType === tab.id
+                        ? 'bg-white text-amber-600 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <span>{tab.emoji}</span>
+                    <span>{tab.label}</span>
+                    {tab.id !== 'text' && (
+                      <span className="bg-amber-100 text-amber-600 text-xs px-1.5 py-0.5 rounded-full">
+                        Pro
+                      </span>
+                    )}
                   </button>
-                  <button onClick={handleSubmit} disabled={loading || !form.message}
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition">
-                    {loading ? 'Sealing...' : 'Seal this capsule 🔒'}
-                  </button>
-                </div>
+                ))}
               </div>
+
+              {/* Text message */}
+              {messageType === 'text' && (
+                <div className="space-y-3">
+                  <textarea
+                    name="message"
+                    value={form.message}
+                    onChange={handleChange}
+                    rows={8}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    placeholder="Write something from your heart..."
+                  />
+                  <div className="flex justify-between items-center">
+                    <p className={`text-xs ${wordCount > 5000 ? 'text-red-500' : 'text-gray-400'}`}>
+                      {wordCount} / 5,000 words
+                    </p>
+                    {wordCount > 5000 && (
+                      <p className="text-xs text-red-500">Word limit reached — upgrade to Loved for unlimited words</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Audio — Premium locked */}
+              {messageType === 'audio' && (
+                <div className="border-2 border-dashed border-amber-200 rounded-xl p-8 text-center bg-amber-50">
+                  <div className="text-5xl mb-4">🎵</div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-2">Audio Messages</h3>
+                  <p className="text-gray-500 text-sm mb-1">Record your voice or upload an audio file.</p>
+                  <p className="text-gray-400 text-xs mb-5">Supports MP3, WAV · up to 2GB total storage</p>
+                  <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-semibold mb-4">
+                    🔒 Premium Feature
+                  </div>
+                  <p className="text-gray-500 text-sm mb-5">Available on the <strong>Loved</strong> and <strong>Forever</strong> plans</p>
+                  <a href="/pricing"
+                    className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-medium transition text-sm">
+                    View Plans — from €2.99/mo
+                  </a>
+                </div>
+              )}
+
+              {/* Video — Premium locked */}
+              {messageType === 'video' && (
+                <div className="border-2 border-dashed border-amber-200 rounded-xl p-8 text-center bg-amber-50">
+                  <div className="text-5xl mb-4">🎥</div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-2">Video Messages</h3>
+                  <p className="text-gray-500 text-sm mb-1">Record a video or upload an existing one.</p>
+                  <p className="text-gray-400 text-xs mb-5">Supports MP4 · up to 5GB total storage on Forever plan</p>
+                  <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-semibold mb-4">
+                    🔒 Premium Feature
+                  </div>
+                  <p className="text-gray-500 text-sm mb-5">Available on the <strong>Loved</strong> and <strong>Forever</strong> plans</p>
+                  <a href="/pricing"
+                    className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-medium transition text-sm">
+                    View Plans — from €2.99/mo
+                  </a>
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setStep(2)}
+                  className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300">
+                  ← Back
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading || messageType !== 'text' || !form.message || wordCount > 5000}
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition">
+                  {loading ? 'Sealing...' : 'Seal this capsule 🔒'}
+                </button>
+              </div>
+
+              {messageType !== 'text' && (
+                <p className="text-center text-xs text-gray-400 mt-3">
+                  Switch to Text tab to seal your capsule for now.
+                </p>
+              )}
             </div>
           )}
 
