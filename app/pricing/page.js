@@ -76,15 +76,17 @@ export default function PricingPage() {
 
       <main className="max-w-5xl mx-auto px-6 py-16">
 
-        {/* Heading */}
-        <div className="text-center mb-12">
-       <button
-       onClick={() => router.back()}
-       className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700 text-sm font-medium mb-8">
-       ← Back
-       </button>
-       <h1 className="text-4xl font-bold text-gray-900 mb-4">Simple, honest pricing</h1>
-        <p className="text-gray-500 text-lg">Start free. Upgrade when you're ready to do more.</p>
+        {/* Back button + Heading */}
+        <div className="mb-12">
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700 font-semibold text-base mb-8">
+            ← Back
+          </button>
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Simple, honest pricing</h1>
+            <p className="text-gray-500 text-lg">Start free. Upgrade when you're ready to do more.</p>
+          </div>
         </div>
 
         {/* Billing period toggle */}

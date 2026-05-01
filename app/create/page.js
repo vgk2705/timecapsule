@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../supabase'
 
 const MILESTONES = [
@@ -37,6 +38,7 @@ function calculateUnlockDate(milestone, dob) {
 }
 
 export default function CreateCapsule() {
+  const router = useRouter()
   const [step, setStep] = useState(1)
   const [messageType, setMessageType] = useState('text')
   const [form, setForm] = useState({
@@ -57,9 +59,28 @@ export default function CreateCapsule() {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.href = '/login'; return }
-      // Pre-fill sender name from user metadata
-      const name = user.user_metadata?.name || ''
-      setForm(f => ({ ...f, senderName: name }))
+
+      // Restore saved form data if coming back from pricing
+      const savedForm = sessionStorage.getItem('capsuleForm')
+      const savedStep = sessionStorage.getItem('capsuleStep')
+      const savedMessageType = sessionStorage.getItem('capsuleMessageType')
+      if (savedForm) {
+        const parsed = JSON.parse(savedForm)
+        setForm(parsed)
+        if (savedStep) setStep(parseInt(savedStep))
+        if (savedMessageType) setMessageType(savedMessageType)
+        // Update word count
+        if (parsed.message) {
+          const words = parsed.message.trim() === '' ? 0 : parsed.message.trim().split(/\s+/).length
+          setWordCount(words)
+        }
+        sessionStorage.removeItem('capsuleForm')
+        sessionStorage.removeItem('capsuleStep')
+        sessionStorage.removeItem('capsuleMessageType')
+      } else {
+        const name = user.user_metadata?.name || ''
+        setForm(f => ({ ...f, senderName: name }))
+      }
     }
     checkUser()
   }, [])
@@ -88,6 +109,13 @@ export default function CreateCapsule() {
       updated.unlockDate = ''
     }
     setForm(updated)
+  }
+
+  const goToPricing = () => {
+    sessionStorage.setItem('capsuleForm', JSON.stringify(form))
+    sessionStorage.setItem('capsuleStep', step.toString())
+    sessionStorage.setItem('capsuleMessageType', messageType)
+    router.push('/pricing')
   }
 
   const handleSubmit = async () => {
@@ -141,7 +169,7 @@ export default function CreateCapsule() {
 
         <div className="bg-white rounded-2xl shadow-sm p-8">
 
-          {/* Step 1 — Who is this for */}
+          {/* Step 1 */}
           {step === 1 && (
             <div>
               <div className="text-3xl mb-2">👤</div>
@@ -149,7 +177,6 @@ export default function CreateCapsule() {
               <p className="text-gray-400 text-sm mb-8">Tell us about yourself and the person receiving this message.</p>
               <div className="space-y-5">
 
-                {/* Sender name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Your name</label>
                   <input name="senderName" value={form.senderName} onChange={handleChange}
@@ -157,7 +184,6 @@ export default function CreateCapsule() {
                     placeholder="e.g. Gopala" />
                 </div>
 
-                {/* Relationship */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">Your relationship to recipient</label>
                   <div className="grid grid-cols-5 gap-2">
@@ -179,7 +205,6 @@ export default function CreateCapsule() {
                   </div>
                 </div>
 
-                {/* Recipient name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Their name</label>
                   <input name="recipientName" value={form.recipientName} onChange={handleChange}
@@ -187,7 +212,6 @@ export default function CreateCapsule() {
                     placeholder="e.g. Karsanvidhun" />
                 </div>
 
-                {/* Recipient email */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Their email</label>
                   <input name="recipientEmail" value={form.recipientEmail} onChange={handleChange} type="email"
@@ -195,7 +219,6 @@ export default function CreateCapsule() {
                     placeholder="their@email.com" />
                 </div>
 
-                {/* Recipient DOB */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Their date of birth</label>
                   <input name="recipientDob" value={form.recipientDob} onChange={handleChange} type="date"
@@ -212,7 +235,7 @@ export default function CreateCapsule() {
             </div>
           )}
 
-          {/* Step 2 — Choose milestone */}
+          {/* Step 2 */}
           {step === 2 && (
             <div>
               <div className="text-3xl mb-2">🎯</div>
@@ -255,7 +278,7 @@ export default function CreateCapsule() {
             </div>
           )}
 
-          {/* Step 3 — Message type + content */}
+          {/* Step 3 */}
           {step === 3 && (
             <div>
               <div className="text-3xl mb-2">✍️</div>
@@ -289,7 +312,7 @@ export default function CreateCapsule() {
                 ))}
               </div>
 
-              {/* Text message */}
+              {/* Text */}
               {messageType === 'text' && (
                 <div className="space-y-3">
                   <textarea
@@ -322,9 +345,10 @@ export default function CreateCapsule() {
                     🔒 Premium Feature
                   </div>
                   <p className="text-gray-500 text-sm mb-5">Available on the <strong>Loved</strong> and <strong>Forever</strong> plans</p>
-                  <a href="/pricing" className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-medium transition text-sm">
+                  <button onClick={goToPricing}
+                    className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-medium transition text-sm">
                     View Plans — from €2.99/mo
-                  </a>
+                  </button>
                 </div>
               )}
 
@@ -339,9 +363,10 @@ export default function CreateCapsule() {
                     🔒 Premium Feature
                   </div>
                   <p className="text-gray-500 text-sm mb-5">Available on the <strong>Loved</strong> and <strong>Forever</strong> plans</p>
-                  <a href="/pricing" className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-medium transition text-sm">
+                  <button onClick={goToPricing}
+                    className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-medium transition text-sm">
                     View Plans — from €2.99/mo
-                  </a>
+                  </button>
                 </div>
               )}
 
