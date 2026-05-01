@@ -78,8 +78,13 @@ export default function PricingPage() {
 
         {/* Heading */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Simple, honest pricing</h1>
-          <p className="text-gray-500 text-lg">Start free. Upgrade when you're ready to do more.</p>
+       <button
+       onClick={() => router.back()}
+       className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700 text-sm font-medium mb-8">
+       ← Back
+       </button>
+       <h1 className="text-4xl font-bold text-gray-900 mb-4">Simple, honest pricing</h1>
+        <p className="text-gray-500 text-lg">Start free. Upgrade when you're ready to do more.</p>
         </div>
 
         {/* Billing period toggle */}

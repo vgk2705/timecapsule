@@ -12,8 +12,10 @@ const MILESTONES = [
 ]
 
 const RELATIONSHIPS = [
-  { id: 'father', label: 'Father', emoji: '👨' },
   { id: 'mother', label: 'Mother', emoji: '👩' },
+  { id: 'father', label: 'Father', emoji: '👨' },
+  { id: 'wife', label: 'Wife', emoji: '👰' },
+  { id: 'husband', label: 'Husband', emoji: '🤵' },
   { id: 'grandfather', label: 'Grandfather', emoji: '👴' },
   { id: 'grandmother', label: 'Grandmother', emoji: '👵' },
   { id: 'brother', label: 'Brother', emoji: '👦' },
