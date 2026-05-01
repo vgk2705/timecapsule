@@ -1,55 +1,29 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '../supabase'
 
 const PLANS = {
   loved: {
     name: 'Loved',
     emoji: '💛',
-    color: 'amber',
     description: 'For families who want to preserve every memory',
-    features: [
-      '✅ Unlimited text capsules',
-      '✅ Unlimited words',
-      '✅ Audio messages',
-      '✅ Video messages',
-      '✅ 2GB media storage',
-      '✅ All milestones + custom dates',
-      '✅ Priority support',
-      '✅ 6 month grace period if cancelled',
-    ],
-    notIncluded: [
-      '❌ When I am gone feature',
-      '❌ Multiple recipients',
-      '❌ Legacy contact',
-    ],
     pricing: {
-      monthly: { price: 2.99, label: 'month', total: null, saving: null },
-      yearly: { price: 29.90, label: 'year', total: null, saving: '2 months free' },
-      fiveYear: { price: 143.52, label: '5 years', total: null, saving: '1 year free' },
-      tenYear: { price: 287.04, label: '10 years', total: null, saving: '2 years free' },
+      monthly: { price: 2.99, label: 'month', saving: null },
+      yearly: { price: 29.90, label: 'year', saving: '2 months free' },
+      fiveYear: { price: 143.52, label: '5 years', saving: '1 year free' },
+      tenYear: { price: 287.04, label: '10 years', saving: '2 years free' },
     }
   },
   forever: {
     name: 'Forever',
     emoji: '👑',
-    color: 'purple',
     description: 'For those leaving a legacy across generations',
-    features: [
-      '✅ Everything in Loved',
-      '✅ 5GB media storage',
-      '✅ When I am gone feature',
-      '✅ Multiple recipients per capsule',
-      '✅ Legacy contact person',
-      '✅ Dedicated support',
-      '✅ 10 year storage guaranteed',
-    ],
-    notIncluded: [],
     pricing: {
-      monthly: { price: 4.99, label: 'month', total: null, saving: null },
-      yearly: { price: 49.90, label: 'year', total: null, saving: '2 months free' },
-      fiveYear: { price: 239.52, label: '5 years', total: null, saving: '1 year free' },
-      tenYear: { price: 479.04, label: '10 years', total: null, saving: '2 years free' },
+      monthly: { price: 4.99, label: 'month', saving: null },
+      yearly: { price: 49.90, label: 'year', saving: '2 months free' },
+      fiveYear: { price: 239.52, label: '5 years', saving: '1 year free' },
+      tenYear: { price: 479.04, label: '10 years', saving: '2 years free' },
     }
   }
 }
@@ -64,6 +38,13 @@ const PERIOD_LABELS = {
 export default function PricingPage() {
   const router = useRouter()
   const [period, setPeriod] = useState('monthly')
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) setUser(data.user)
+    })
+  }, [])
 
   return (
     <div className="min-h-screen bg-amber-50">
@@ -74,11 +55,22 @@ export default function PricingPage() {
           <span className="text-2xl">⏳</span>
           <span className="text-xl font-semibold text-amber-900">TimeCapsule</span>
         </div>
-        <div className="flex gap-3">
-          <a href="/login" className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">Log in</a>
-          <a href="/signup" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
-            Get Started Free
-          </a>
+        <div className="flex gap-3 items-center">
+          {user ? (
+            <>
+              <span className="text-sm text-gray-500">Hi, {user.user_metadata?.name || user.email}</span>
+              <a href="/dashboard" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
+                Dashboard
+              </a>
+            </>
+          ) : (
+            <>
+              <a href="/login" className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">Log in</a>
+              <a href="/signup" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
+                Get Started Free
+              </a>
+            </>
+          )}
         </div>
       </header>
 
@@ -98,9 +90,7 @@ export default function PricingPage() {
                 key={key}
                 onClick={() => setPeriod(key)}
                 className={`px-5 py-2.5 rounded-xl text-sm font-medium transition ${
-                  period === key
-                    ? 'bg-amber-500 text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
+                  period === key ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {label}
@@ -128,9 +118,9 @@ export default function PricingPage() {
               <span className="text-4xl font-bold text-gray-900">€0</span>
               <span className="text-gray-400 text-sm ml-1">forever</span>
             </div>
-            <a href="/signup"
+            <a href={user ? '/dashboard' : '/signup'}
               className="block w-full text-center border-2 border-amber-500 text-amber-600 hover:bg-amber-50 py-3 rounded-xl font-medium transition mb-8">
-              Get started free
+              {user ? 'Go to Dashboard' : 'Get started free'}
             </a>
             <ul className="space-y-3 text-sm text-gray-600">
               <li>✅ 3 text capsules</li>
@@ -164,11 +154,10 @@ export default function PricingPage() {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => router.push('/signup')}
+            <a href={user ? '/dashboard' : '/signup'}
               className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-medium transition mb-8">
-              Start Loved plan
-            </button>
+              {user ? 'Upgrade to Loved' : 'Start Loved plan'}
+            </a>
             <ul className="space-y-3 text-sm text-gray-600">
               <li>✅ Unlimited text capsules</li>
               <li>✅ Unlimited words</li>
@@ -200,11 +189,10 @@ export default function PricingPage() {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => router.push('/signup')}
+            <a href={user ? '/dashboard' : '/signup'}
               className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-xl font-medium transition mb-8">
-              Start Forever plan
-            </button>
+              {user ? 'Upgrade to Forever' : 'Start Forever plan'}
+            </a>
             <ul className="space-y-3 text-sm text-gray-600">
               <li>✅ Everything in Loved</li>
               <li>✅ 5GB media storage</li>
@@ -246,7 +234,6 @@ export default function PricingPage() {
 
       </main>
 
-      {/* Footer */}
       <footer className="text-center py-8 text-gray-400 text-sm mt-8">
         © 2025 TimeCapsule · Made with love for families
       </footer>
