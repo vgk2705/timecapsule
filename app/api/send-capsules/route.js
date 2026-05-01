@@ -29,22 +29,50 @@ export async function GET(request) {
 
   let sent = 0
   for (const capsule of capsules) {
+    const senderName = capsule.sender_name || 'Someone who loves you'
+    const relationship = capsule.relationship
+      ? capsule.relationship.charAt(0).toUpperCase() + capsule.relationship.slice(1)
+      : 'Someone special'
+
+    const senderLabel = capsule.sender_name
+      ? `${senderName} (your ${relationship})`
+      : relationship
+
     const { error: emailError } = await resend.emails.send({
       from: 'TimeCapsule <hello@mytimecapsule.app>',
       to: capsule.recipient_email,
       subject: `💌 A message has been unlocked for you, ${capsule.recipient_name}!`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-          <h1 style="color: #b45309;">⏳ TimeCapsule</h1>
-          <p style="font-size: 18px; color: #374151;">Dear <strong>${capsule.recipient_name}</strong>,</p>
-          <p style="color: #6b7280;">Someone left you a message — and today is the day it unlocks.</p>
-          <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 24px 0;">
-            <p style="font-size: 16px; color: #1f2937; line-height: 1.6;">${capsule.message}</p>
+
+          <h1 style="color: #b45309; font-size: 24px; margin-bottom: 24px;">⏳ TimeCapsule</h1>
+
+          <p style="font-size: 18px; color: #374151; margin-bottom: 8px;">
+            Dear <strong>${capsule.recipient_name}</strong>,
+          </p>
+
+          <p style="color: #6b7280; margin-bottom: 24px; font-size: 15px;">
+            <strong style="color: #b45309;">${senderLabel}</strong> wrote you a message — and today is the day it unlocks. 💛
+          </p>
+
+          <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 24px; border-radius: 8px; margin: 24px 0;">
+            <p style="font-size: 16px; color: #1f2937; line-height: 1.8; margin: 0;">${capsule.message}</p>
           </div>
-          <p style="color: #9ca3af; font-size: 14px;">Sent with love via TimeCapsule</p>
+
+          <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
+            This message was written with love and sealed until today — your special day.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 32px 0;" />
+
+          <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+            Sent with love via <a href="https://mytimecapsule.app" style="color: #b45309; text-decoration: none;">TimeCapsule</a>
+          </p>
+
         </div>
       `
     })
+
     if (!emailError) {
       await supabase
         .from('capsules')
@@ -55,4 +83,4 @@ export async function GET(request) {
   }
 
   return new Response(`Sent ${sent} capsules`, { status: 200 })
-}   
+}

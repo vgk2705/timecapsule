@@ -64,12 +64,25 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-500">Hi, {user?.user_metadata?.name || user?.email}</span>
+          <a href="/pricing" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Pricing</a>
           <a href="/support" className="text-sm text-amber-600 hover:text-amber-700 font-medium">Support</a>
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">Log out</button>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-10">
+
+        {/* Upgrade banner */}
+        <div className="bg-gradient-to-r from-amber-400 to-amber-500 rounded-2xl p-5 mb-8 flex items-center justify-between">
+          <div>
+            <p className="text-white font-bold text-sm">🎵 Want to send audio & video capsules?</p>
+            <p className="text-amber-100 text-xs mt-0.5">Upgrade to Loved or Forever plan — from €2.99/month</p>
+          </div>
+          <a href="/pricing" className="bg-white text-amber-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-50 transition flex-shrink-0">
+            See Plans
+          </a>
+        </div>
+
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold text-gray-800">Your Capsules</h1>
           <a href="/create" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
