@@ -39,18 +39,63 @@ export default function PricingPage() {
   const router = useRouter()
   const [period, setPeriod] = useState('monthly')
   const [user, setUser] = useState(null)
+  const [currency, setCurrency] = useState({ symbol: '€', code: 'EUR', rate: 1, country: '' })
+  const [currencyLoading, setCurrencyLoading] = useState(true)
 
   useEffect(() => {
+    // Get user
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) setUser(data.user)
     })
+
+    // Detect currency based on location
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then(data => {
+        const currencyMap = {
+          'IN': { symbol: '₹', code: 'INR', rate: 90, country: 'India' },
+          'US': { symbol: '$', code: 'USD', rate: 1.08, country: 'USA' },
+          'GB': { symbol: '£', code: 'GBP', rate: 0.85, country: 'UK' },
+          'AU': { symbol: 'A$', code: 'AUD', rate: 1.65, country: 'Australia' },
+          'CA': { symbol: 'C$', code: 'CAD', rate: 1.47, country: 'Canada' },
+          'SG': { symbol: 'S$', code: 'SGD', rate: 1.45, country: 'Singapore' },
+          'AE': { symbol: 'AED', code: 'AED', rate: 3.97, country: 'UAE' },
+          'MY': { symbol: 'RM', code: 'MYR', rate: 5.05, country: 'Malaysia' },
+          'NZ': { symbol: 'NZ$', code: 'NZD', rate: 1.78, country: 'New Zealand' },
+          'JP': { symbol: '¥', code: 'JPY', rate: 163, country: 'Japan' },
+          // All European countries default to EUR
+          'NL': { symbol: '€', code: 'EUR', rate: 1, country: 'Netherlands' },
+          'DE': { symbol: '€', code: 'EUR', rate: 1, country: 'Germany' },
+          'FR': { symbol: '€', code: 'EUR', rate: 1, country: 'France' },
+          'IT': { symbol: '€', code: 'EUR', rate: 1, country: 'Italy' },
+          'ES': { symbol: '€', code: 'EUR', rate: 1, country: 'Spain' },
+          'BE': { symbol: '€', code: 'EUR', rate: 1, country: 'Belgium' },
+        }
+        const detected = currencyMap[data.country_code]
+        if (detected) setCurrency(detected)
+        setCurrencyLoading(false)
+      })
+      .catch(() => setCurrencyLoading(false))
   }, [])
 
+  const formatPrice = (euroPrice) => {
+    const converted = (euroPrice * currency.rate)
+    // Round nicely
+    if (currency.code === 'INR' || currency.code === 'JPY') {
+      return `${currency.symbol}${Math.round(converted)}`
+    }
+    return `${currency.symbol}${converted.toFixed(2)}`
+  }
+
+  const priceNote = currency.code !== 'EUR'
+    ? `Prices shown in ${currency.code} (approx.). Charged in EUR.`
+    : null
+
   return (
-    <div className="min-h-screen bg-amber-50">
+    <div className="min-h-screen bg-amber-50 flex flex-col">
 
       {/* Navbar */}
-      <header className="px-6 py-5 flex items-center justify-between max-w-5xl mx-auto">
+      <header className="px-6 py-5 flex items-center justify-between max-w-5xl mx-auto w-full">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
           <span className="text-2xl">⏳</span>
           <span className="text-xl font-semibold text-amber-900">TimeCapsule</span>
@@ -74,7 +119,7 @@ export default function PricingPage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-16">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-16">
 
         {/* Back button + Heading */}
         <div className="mb-12">
@@ -86,6 +131,16 @@ export default function PricingPage() {
           <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Simple, honest pricing</h1>
             <p className="text-gray-500 text-lg">Start free. Upgrade when you're ready to do more.</p>
+            {/* Currency indicator */}
+            {!currencyLoading && currency.country && (
+              <div className="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-1.5 mt-4 text-sm text-gray-500 shadow-sm">
+                <span>📍</span>
+                <span>Showing prices for <strong>{currency.country}</strong> in <strong>{currency.code}</strong></span>
+              </div>
+            )}
+            {priceNote && (
+              <p className="text-xs text-gray-400 mt-2">{priceNote}</p>
+            )}
           </div>
         </div>
 
@@ -122,7 +177,7 @@ export default function PricingPage() {
             <h2 className="text-xl font-bold text-gray-800 mb-1">Free</h2>
             <p className="text-gray-400 text-sm mb-6">Try it out, no card needed</p>
             <div className="mb-6">
-              <span className="text-4xl font-bold text-gray-900">€0</span>
+              <span className="text-4xl font-bold text-gray-900">{currency.symbol}0</span>
               <span className="text-gray-400 text-sm ml-1">forever</span>
             </div>
             <a href={user ? '/dashboard' : '/signup'}
@@ -152,7 +207,7 @@ export default function PricingPage() {
             <p className="text-gray-400 text-sm mb-6">For families preserving every memory</p>
             <div className="mb-6">
               <span className="text-4xl font-bold text-gray-900">
-                €{PLANS.loved.pricing[period].price.toFixed(2)}
+                {currencyLoading ? '...' : formatPrice(PLANS.loved.pricing[period].price)}
               </span>
               <span className="text-gray-400 text-sm ml-1">/ {PLANS.loved.pricing[period].label}</span>
               {PLANS.loved.pricing[period].saving && (
@@ -187,7 +242,7 @@ export default function PricingPage() {
             <p className="text-gray-400 text-sm mb-6">For legacies across generations</p>
             <div className="mb-6">
               <span className="text-4xl font-bold text-gray-900">
-                €{PLANS.forever.pricing[period].price.toFixed(2)}
+                {currencyLoading ? '...' : formatPrice(PLANS.forever.pricing[period].price)}
               </span>
               <span className="text-gray-400 text-sm ml-1">/ {PLANS.forever.pricing[period].label}</span>
               {PLANS.forever.pricing[period].saving && (
@@ -241,13 +296,14 @@ export default function PricingPage() {
 
       </main>
 
+      {/* Footer */}
       <footer className="text-center py-8 text-gray-400 text-sm">
-      <div className="flex justify-center gap-6 mb-3">
-      <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
-      <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
-      <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
-      </div>
-      © 2026 TimeCapsule · Made with love for families
+        <div className="flex justify-center gap-6 mb-3">
+          <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
+          <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
+          <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
+        </div>
+        © 2026 TimeCapsule · Made with love for families
       </footer>
 
     </div>
