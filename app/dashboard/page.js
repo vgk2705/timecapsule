@@ -53,6 +53,8 @@ export default function Dashboard() {
     window.location.href = '/'
   }
 
+  const firstName = user?.user_metadata?.name?.split(' ')[0] || user?.email?.split('@')[0] || ''
+
   if (loading) return (
     <div className="min-h-screen bg-amber-50 flex items-center justify-center">
       <p className="text-gray-400">Loading your capsules...</p>
@@ -62,41 +64,44 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
 
-      <header className="px-6 py-5 flex items-center justify-between max-w-4xl mx-auto w-full">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">⏳</span>
-          <span className="text-xl font-semibold text-amber-900">TimeCapsule</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">Hi, {user?.user_metadata?.name || user?.email}</span>
-          <a href="/pricing" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Pricing</a>
-          <a href="/support" className="text-sm text-amber-600 hover:text-amber-700 font-medium">Support</a>
-          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">Log out</button>
+      {/* Header */}
+      <header className="px-4 md:px-6 py-4 md:py-5 border-b border-amber-100 bg-amber-50">
+        <div className="flex items-center justify-between max-w-4xl mx-auto">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">⏳</span>
+            <span className="text-lg md:text-xl font-semibold text-amber-900">TimeCapsule</span>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4">
+            <span className="hidden sm:block text-sm text-gray-500">Hi, {firstName}</span>
+            <a href="/pricing" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Pricing</a>
+            <a href="/support" className="text-sm text-amber-600 hover:text-amber-700 font-medium">Support</a>
+            <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">Log out</button>
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-10">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 md:px-6 py-6 md:py-10">
 
         {/* Upgrade banner */}
-        <div className="bg-gradient-to-r from-amber-400 to-amber-500 rounded-2xl p-5 mb-8 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-amber-400 to-amber-500 rounded-2xl p-4 md:p-5 mb-6 md:mb-8 flex items-center justify-between gap-4">
           <div>
             <p className="text-white font-bold text-sm">🎵 Want to send audio & video capsules?</p>
-            <p className="text-amber-100 text-xs mt-0.5">Upgrade to Loved or Forever plan — from €2.99/month</p>
+            <p className="text-amber-100 text-xs mt-0.5">Upgrade to Loved or Forever — from €2.99/mo</p>
           </div>
-          <a href="/pricing" className="bg-white text-amber-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-50 transition flex-shrink-0">
+          <a href="/pricing" className="bg-white text-amber-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-50 transition flex-shrink-0">
             See Plans
           </a>
         </div>
 
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Your Capsules</h1>
-          <a href="/create" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
+        <div className="flex items-center justify-between mb-6 md:mb-8">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Your Capsules</h1>
+          <a href="/create" className="bg-amber-500 hover:bg-amber-600 text-white px-4 md:px-5 py-2 rounded-full text-sm font-medium transition">
             + New capsule
           </a>
         </div>
 
         {capsules.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="text-center py-16 md:py-20">
             <div className="text-5xl mb-4">💌</div>
             <p className="text-gray-400 mb-6">You haven't created any capsules yet.</p>
             <a href="/create" className="bg-amber-500 text-white px-6 py-3 rounded-full hover:bg-amber-600 transition">
@@ -106,11 +111,10 @@ export default function Dashboard() {
         ) : (
           <div className="grid gap-4">
             {capsules.map(capsule => (
-              <div key={capsule.id} className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
+              <div key={capsule.id} className="bg-white rounded-2xl p-4 md:p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm text-amber-600 font-medium mb-2">To: {capsule.recipient_name}</p>
-
                     {editingId === capsule.id ? (
                       <div className="space-y-3">
                         <textarea
@@ -131,30 +135,32 @@ export default function Dashboard() {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-gray-700 text-sm line-clamp-2">{capsule.message}</p>
+                      <p className="text-gray-700 text-sm line-clamp-2 break-words">{capsule.message}</p>
                     )}
                   </div>
 
-                  <div className="text-right flex-shrink-0">
-                    <span className={`inline-block text-xs px-3 py-1 rounded-full mb-2 ${
-                      capsule.status === 'delivered'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {capsule.status === 'delivered' ? '✅ Delivered' : '🔒 Locked'}
-                    </span>
-                    <p className="text-xs text-gray-400 mb-1">
-                      {capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} {capsule.unlock_date}
-                    </p>
-                    <p className="text-xs text-gray-300 mb-3">
-                      {capsule.updated_at
-                        ? `✏️ Edited ${new Date(capsule.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                        : `📅 Created ${new Date(capsule.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                      }
-                    </p>
+                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-0 flex-shrink-0">
+                    <div className="sm:text-right">
+                      <span className={`inline-block text-xs px-3 py-1 rounded-full mb-1 ${
+                        capsule.status === 'delivered'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {capsule.status === 'delivered' ? '✅ Delivered' : '🔒 Locked'}
+                      </span>
+                      <p className="text-xs text-gray-400 mb-1">
+                        {capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} {capsule.unlock_date}
+                      </p>
+                      <p className="text-xs text-gray-300 mb-2 sm:mb-3">
+                        {capsule.updated_at
+                          ? `✏️ Edited ${new Date(capsule.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                          : `📅 Created ${new Date(capsule.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                        }
+                      </p>
+                    </div>
 
                     {capsule.status === 'locked' && editingId !== capsule.id && (
-                      <div className="flex gap-2 justify-end">
+                      <div className="flex gap-2">
                         <button
                           onClick={() => { setEditingId(capsule.id); setEditMessage(capsule.message) }}
                           className="text-xs text-amber-600 hover:text-amber-700 border border-amber-200 px-3 py-1 rounded-lg transition">
@@ -176,16 +182,14 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="text-center py-8 text-gray-400 text-sm">
-        <div className="flex justify-center gap-6 mb-3">
+      <footer className="text-center py-6 md:py-8 text-gray-400 text-sm px-4">
+        <div className="flex flex-wrap justify-center gap-4 md:gap-6 mb-3">
           <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
           <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
           <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
         </div>
         © 2026 TimeCapsule · Made with love for families
       </footer>
-
     </div>
   )
 }

@@ -136,23 +136,23 @@ export default function CreateCapsule() {
 
   if (submitted) return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center p-10">
+      <div className="flex-1 flex items-center justify-center px-4">
+        <div className="text-center p-6 md:p-10">
           <div className="text-6xl mb-6">💌</div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-4">Your capsule is sealed!</h1>
-          <p className="text-gray-500 text-lg">It will be delivered to <strong>{form.recipientName}</strong> on <strong>{form.unlockDate}</strong>.</p>
-          <div className="flex gap-4 justify-center mt-8">
-            <a href="/dashboard" className="bg-amber-500 text-white px-6 py-3 rounded-full hover:bg-amber-600 transition">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Your capsule is sealed!</h1>
+          <p className="text-gray-500 text-base md:text-lg">It will be delivered to <strong>{form.recipientName}</strong> on <strong>{form.unlockDate}</strong>.</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
+            <a href="/dashboard" className="bg-amber-500 text-white px-6 py-3 rounded-full hover:bg-amber-600 transition text-center">
               View my capsules
             </a>
-            <a href="/create" className="border border-gray-300 text-gray-600 px-6 py-3 rounded-full hover:border-gray-400 transition">
+            <a href="/create" className="border border-gray-300 text-gray-600 px-6 py-3 rounded-full hover:border-gray-400 transition text-center">
               Create another
             </a>
           </div>
         </div>
       </div>
-      <footer className="text-center py-8 text-gray-400 text-sm">
-        <div className="flex justify-center gap-6 mb-3">
+      <footer className="text-center py-6 text-gray-400 text-sm px-4">
+        <div className="flex flex-wrap justify-center gap-4 mb-3">
           <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
           <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
           <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
@@ -164,25 +164,25 @@ export default function CreateCapsule() {
 
   return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
-      <div className="flex-1 py-12 px-6">
+      <div className="flex-1 py-8 md:py-12 px-4 md:px-6">
         <div className="max-w-xl mx-auto">
-          <a href="/dashboard" className="text-amber-600 text-sm mb-8 inline-block">← Back to dashboard</a>
+          <a href="/dashboard" className="text-amber-600 text-sm mb-6 md:mb-8 inline-block">← Back to dashboard</a>
 
           {/* Progress */}
-          <div className="flex items-center gap-2 mb-8">
+          <div className="flex items-center gap-2 mb-6 md:mb-8">
             {[1,2,3].map(s => (
               <div key={s} className={`h-1.5 flex-1 rounded-full transition-all ${step >= s ? 'bg-amber-500' : 'bg-gray-200'}`} />
             ))}
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm p-8">
+          <div className="bg-white rounded-2xl shadow-sm p-5 md:p-8">
 
             {/* Step 1 */}
             {step === 1 && (
               <div>
                 <div className="text-3xl mb-2">👤</div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-1">Who is this for?</h1>
-                <p className="text-gray-400 text-sm mb-8">Tell us about yourself and the person receiving this message.</p>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-1">Who is this for?</h1>
+                <p className="text-gray-400 text-sm mb-6 md:mb-8">Tell us about yourself and the person receiving this message.</p>
                 <div className="space-y-5">
 
                   <div>
@@ -191,26 +191,27 @@ export default function CreateCapsule() {
                     </label>
                     <input name="senderName" value={form.senderName} onChange={handleChange}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                      placeholder="e.g. Gopala" />
+                      placeholder="e.g. John" />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">
                       Your relationship to recipient <span className="text-red-500">*</span>
                     </label>
-                    <div className="grid grid-cols-5 gap-2">
+                    {/* 4 cols on mobile, 5 on desktop */}
+                    <div className="grid grid-cols-4 md:grid-cols-5 gap-2">
                       {RELATIONSHIPS.map(r => (
                         <button
                           key={r.id}
                           type="button"
                           onClick={() => setForm({ ...form, relationship: r.id })}
-                          className={`flex flex-col items-center p-2 rounded-xl border-2 transition text-center ${
+                          className={`flex flex-col items-center p-1.5 md:p-2 rounded-xl border-2 transition text-center ${
                             form.relationship === r.id
                               ? 'border-amber-500 bg-amber-50'
                               : 'border-gray-200 hover:border-amber-300'
                           }`}
                         >
-                          <span className="text-xl mb-1">{r.emoji}</span>
+                          <span className="text-lg md:text-xl mb-1">{r.emoji}</span>
                           <span className="text-xs text-gray-600 font-medium leading-tight">{r.label}</span>
                         </button>
                       ))}
@@ -223,7 +224,7 @@ export default function CreateCapsule() {
                     </label>
                     <input name="recipientName" value={form.recipientName} onChange={handleChange}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                      placeholder="e.g. Karsanvidhun" />
+                      placeholder="e.g. Emma" />
                   </div>
 
                   <div>
@@ -259,15 +260,15 @@ export default function CreateCapsule() {
             {step === 2 && (
               <div>
                 <div className="text-3xl mb-2">🎯</div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-1">When should it unlock?</h1>
-                <p className="text-gray-400 text-sm mb-8">Choose a life milestone for {form.recipientName}.</p>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-1">When should it unlock?</h1>
+                <p className="text-gray-400 text-sm mb-6 md:mb-8">Choose a life milestone for {form.recipientName}.</p>
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   {MILESTONES.map(m => (
                     <button key={m.id} onClick={() => handleMilestone(m.id)}
-                      className={`p-4 rounded-xl border-2 text-left transition ${form.milestone === m.id ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'}`}>
-                      <div className="text-2xl mb-1">{m.emoji}</div>
-                      <div className="text-sm font-medium text-gray-800">{m.label}</div>
-                      <div className="text-xs text-gray-400">{m.description}</div>
+                      className={`p-3 md:p-4 rounded-xl border-2 text-left transition ${form.milestone === m.id ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'}`}>
+                      <div className="text-xl md:text-2xl mb-1">{m.emoji}</div>
+                      <div className="text-xs md:text-sm font-medium text-gray-800">{m.label}</div>
+                      <div className="text-xs text-gray-400 hidden md:block">{m.description}</div>
                     </button>
                   ))}
                 </div>
@@ -289,11 +290,11 @@ export default function CreateCapsule() {
                 )}
 
                 <div className="flex gap-3">
-                  <button onClick={() => setStep(1)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300">
+                  <button onClick={() => setStep(1)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">
                     ← Back
                   </button>
                   <button onClick={() => setStep(3)} disabled={!form.milestone || !form.unlockDate}
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition">
+                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm">
                     Next →
                   </button>
                 </div>
@@ -304,13 +305,13 @@ export default function CreateCapsule() {
             {step === 3 && (
               <div>
                 <div className="text-3xl mb-2">✍️</div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-1">Your message</h1>
-                <p className="text-gray-400 text-sm mb-6">
-                  This will be delivered to {form.recipientName} on {form.unlockDate}.
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-1">Your message</h1>
+                <p className="text-gray-400 text-sm mb-5 md:mb-6">
+                  Delivered to {form.recipientName} on {form.unlockDate}.
                 </p>
 
                 {/* Message type tabs */}
-                <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-xl">
+                <div className="flex gap-1 md:gap-2 mb-5 md:mb-6 bg-gray-100 p-1 rounded-xl">
                   {[
                     { id: 'text', emoji: '📝', label: 'Text' },
                     { id: 'audio', emoji: '🎵', label: 'Audio' },
@@ -319,7 +320,7 @@ export default function CreateCapsule() {
                     <button
                       key={tab.id}
                       onClick={() => setMessageType(tab.id)}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition ${
+                      className={`flex-1 flex items-center justify-center gap-1 md:gap-2 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-medium transition ${
                         messageType === tab.id
                           ? 'bg-white text-amber-600 shadow-sm'
                           : 'text-gray-500 hover:text-gray-700'
@@ -328,7 +329,7 @@ export default function CreateCapsule() {
                       <span>{tab.emoji}</span>
                       <span>{tab.label}</span>
                       {tab.id !== 'text' && (
-                        <span className="bg-amber-100 text-amber-600 text-xs px-1.5 py-0.5 rounded-full">Pro</span>
+                        <span className="bg-amber-100 text-amber-600 text-xs px-1 md:px-1.5 py-0.5 rounded-full">Pro</span>
                       )}
                     </button>
                   ))}
@@ -344,7 +345,7 @@ export default function CreateCapsule() {
                       name="message"
                       value={form.message}
                       onChange={handleChange}
-                      rows={8}
+                      rows={7}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
                       placeholder={`Write something from your heart to ${form.recipientName}...`}
                     />
@@ -353,7 +354,7 @@ export default function CreateCapsule() {
                         {wordCount} / 5,000 words
                       </p>
                       {wordCount > 5000 && (
-                        <p className="text-xs text-red-500">Word limit reached — upgrade to Loved for unlimited</p>
+                        <p className="text-xs text-red-500">Upgrade to Loved for unlimited</p>
                       )}
                     </div>
                   </div>
@@ -361,17 +362,17 @@ export default function CreateCapsule() {
 
                 {/* Audio — Premium locked */}
                 {messageType === 'audio' && (
-                  <div className="border-2 border-dashed border-amber-200 rounded-xl p-8 text-center bg-amber-50">
-                    <div className="text-5xl mb-4">🎵</div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">Audio Messages</h3>
+                  <div className="border-2 border-dashed border-amber-200 rounded-xl p-6 md:p-8 text-center bg-amber-50">
+                    <div className="text-4xl md:text-5xl mb-3 md:mb-4">🎵</div>
+                    <h3 className="text-base md:text-lg font-bold text-gray-800 mb-2">Audio Messages</h3>
                     <p className="text-gray-500 text-sm mb-1">Record your voice or upload an audio file.</p>
-                    <p className="text-gray-400 text-xs mb-5">Supports MP3, WAV · up to 2GB total storage</p>
-                    <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-semibold mb-4">
+                    <p className="text-gray-400 text-xs mb-4 md:mb-5">Supports MP3, WAV · up to 2GB total storage</p>
+                    <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-semibold mb-3 md:mb-4">
                       🔒 Premium Feature
                     </div>
-                    <p className="text-gray-500 text-sm mb-5">Available on the <strong>Loved</strong> and <strong>Forever</strong> plans</p>
+                    <p className="text-gray-500 text-sm mb-4 md:mb-5">Available on <strong>Loved</strong> and <strong>Forever</strong> plans</p>
                     <button onClick={goToPricing}
-                      className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-medium transition text-sm">
+                      className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-5 md:px-6 py-3 rounded-xl font-medium transition text-sm">
                       View Plans — from €2.99/mo
                     </button>
                   </div>
@@ -379,32 +380,32 @@ export default function CreateCapsule() {
 
                 {/* Video — Premium locked */}
                 {messageType === 'video' && (
-                  <div className="border-2 border-dashed border-amber-200 rounded-xl p-8 text-center bg-amber-50">
-                    <div className="text-5xl mb-4">🎥</div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">Video Messages</h3>
+                  <div className="border-2 border-dashed border-amber-200 rounded-xl p-6 md:p-8 text-center bg-amber-50">
+                    <div className="text-4xl md:text-5xl mb-3 md:mb-4">🎥</div>
+                    <h3 className="text-base md:text-lg font-bold text-gray-800 mb-2">Video Messages</h3>
                     <p className="text-gray-500 text-sm mb-1">Record a video or upload an existing one.</p>
-                    <p className="text-gray-400 text-xs mb-5">Supports MP4 · up to 5GB total storage on Forever plan</p>
-                    <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-semibold mb-4">
+                    <p className="text-gray-400 text-xs mb-4 md:mb-5">Supports MP4 · up to 5GB on Forever plan</p>
+                    <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-full text-sm font-semibold mb-3 md:mb-4">
                       🔒 Premium Feature
                     </div>
-                    <p className="text-gray-500 text-sm mb-5">Available on the <strong>Loved</strong> and <strong>Forever</strong> plans</p>
+                    <p className="text-gray-500 text-sm mb-4 md:mb-5">Available on <strong>Loved</strong> and <strong>Forever</strong> plans</p>
                     <button onClick={goToPricing}
-                      className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-medium transition text-sm">
+                      className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-5 md:px-6 py-3 rounded-xl font-medium transition text-sm">
                       View Plans — from €2.99/mo
                     </button>
                   </div>
                 )}
 
-                <div className="flex gap-3 mt-6">
+                <div className="flex gap-3 mt-5 md:mt-6">
                   <button onClick={() => setStep(2)}
-                    className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300">
+                    className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">
                     ← Back
                   </button>
                   <button
                     onClick={handleSubmit}
                     disabled={loading || messageType !== 'text' || !form.message || wordCount > 5000}
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition">
-                    {loading ? 'Sealing...' : 'Seal this capsule 🔒'}
+                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm">
+                    {loading ? 'Sealing...' : 'Seal capsule 🔒'}
                   </button>
                 </div>
 
@@ -420,9 +421,8 @@ export default function CreateCapsule() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="text-center py-8 text-gray-400 text-sm">
-        <div className="flex justify-center gap-6 mb-3">
+      <footer className="text-center py-6 text-gray-400 text-sm px-4">
+        <div className="flex flex-wrap justify-center gap-4 mb-3">
           <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
           <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
           <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
