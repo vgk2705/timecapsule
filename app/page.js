@@ -59,7 +59,12 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="text-center py-8 text-gray-400 text-sm">
-        © 2025 TimeCapsule · Made with love for families
+       <div className="flex justify-center gap-6 mb-3">
+       <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
+       <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
+       <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
+      </div>
+      © 2026 TimeCapsule · Made with love for families
       </footer>
 
     </div>

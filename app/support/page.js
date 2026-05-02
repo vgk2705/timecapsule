@@ -64,40 +64,42 @@ export default function SupportPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#fffef0', fontFamily: 'sans-serif' }}>
+    <div className="min-h-screen bg-amber-50 flex flex-col">
       {/* Navbar */}
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 40px', background: '#fffef0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => router.push('/')}>
-          <span style={{ fontSize: '22px' }}>⏳</span>
-          <span style={{ fontWeight: '700', fontSize: '18px', color: '#1a1a1a' }}>TimeCapsule</span>
+      <nav className="flex justify-between items-center px-6 py-5 max-w-4xl mx-auto w-full">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
+          <span className="text-2xl">⏳</span>
+          <span className="text-xl font-semibold text-amber-900">TimeCapsule</span>
         </div>
         <button onClick={() => router.push('/dashboard')}
-          style={{ background: '#f59e0b', color: 'white', border: 'none', borderRadius: '999px', padding: '10px 22px', fontWeight: '600', cursor: 'pointer' }}>
+          className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
           Dashboard
         </button>
       </nav>
 
-      <div style={{ maxWidth: '680px', margin: '0 auto', padding: '40px 20px' }}>
-        <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#1a1a1a', marginBottom: '8px' }}>Support</h1>
-        <p style={{ color: '#6b7280', marginBottom: '32px' }}>Having an issue? We're here to help.</p>
+      <div className="flex-1 max-w-2xl mx-auto w-full px-6 py-10">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Support</h1>
+        <p className="text-gray-500 mb-8">Having an issue? We're here to help.</p>
 
         {/* Form Card */}
-        <div style={{ background: 'white', borderRadius: '16px', padding: '32px', marginBottom: '40px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1a1a1a', marginBottom: '24px' }}>Submit a ticket</h2>
+        <div className="bg-white rounded-2xl p-8 shadow-sm mb-10">
+          <h2 className="text-lg font-bold text-gray-800 mb-6">Submit a ticket</h2>
 
           {success && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '10px', padding: '14px 18px', marginBottom: '24px', color: '#166534', fontWeight: '500' }}>
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-6 text-green-700 font-medium text-sm">
               ✅ Ticket submitted! We'll respond to your email soon.
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>Category</label>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category <span className="text-red-500">*</span>
+              </label>
               <select
                 value={form.category}
                 onChange={e => setForm({ ...form, category: e.target.value })}
-                style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1.5px solid #e5e7eb', fontSize: '15px', background: 'white', outline: 'none' }}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 bg-white"
               >
                 <option value="delivery_issue">Capsule not delivered</option>
                 <option value="login_problem">Login / Account issue</option>
@@ -106,64 +108,82 @@ export default function SupportPage() {
               </select>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>Subject</label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Subject <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 required
                 value={form.subject}
                 onChange={e => setForm({ ...form, subject: e.target.value })}
                 placeholder="Brief description of your issue"
-                style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1.5px solid #e5e7eb', fontSize: '15px', boxSizing: 'border-box', outline: 'none' }}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
             </div>
 
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '14px' }}>Description</label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description <span className="text-red-500">*</span>
+              </label>
               <textarea
                 required
                 value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}
                 placeholder="Describe your issue in detail..."
                 rows={5}
-                style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1.5px solid #e5e7eb', fontSize: '15px', boxSizing: 'border-box', resize: 'vertical', outline: 'none' }}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-vertical"
               />
             </div>
+
+            <p className="text-xs text-gray-400"><span className="text-red-500">*</span> Required fields</p>
 
             <button
               type="submit"
               disabled={loading}
-              style={{ width: '100%', background: '#f59e0b', color: 'white', padding: '14px', borderRadius: '10px', border: 'none', fontWeight: '700', fontSize: '16px', cursor: 'pointer' }}
-            >
+              className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-semibold text-sm transition">
               {loading ? 'Submitting...' : 'Submit Ticket'}
             </button>
           </form>
         </div>
 
         {/* Tickets List */}
-        <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1a1a1a', marginBottom: '16px' }}>Your Tickets</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-4">Your Tickets</h2>
         {tickets.length === 0 ? (
-          <div style={{ background: 'white', borderRadius: '16px', padding: '32px', textAlign: 'center', color: '#9ca3af', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <div className="bg-white rounded-2xl p-8 text-center text-gray-400 shadow-sm">
             No tickets submitted yet.
           </div>
         ) : (
           tickets.map(ticket => {
             const s = statusConfig[ticket.status] || statusConfig.open
             return (
-              <div key={ticket.id} style={{ background: 'white', borderRadius: '16px', padding: '20px 24px', marginBottom: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <strong style={{ color: '#1a1a1a', fontSize: '16px' }}>{ticket.subject}</strong>
-                  <span style={{ background: s.bg, color: s.color, padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: '700' }}>
+              <div key={ticket.id} className="bg-white rounded-2xl px-6 py-5 mb-3 shadow-sm">
+                <div className="flex justify-between items-center mb-2">
+                  <strong className="text-gray-900">{ticket.subject}</strong>
+                  <span style={{ background: s.bg, color: s.color }}
+                    className="px-3 py-1 rounded-full text-xs font-bold">
                     {s.label}
                   </span>
                 </div>
-                <p style={{ color: '#6b7280', fontSize: '14px', margin: '0 0 8px' }}>{ticket.description}</p>
-                <p style={{ color: '#d1d5db', fontSize: '12px', margin: 0 }}>{new Date(ticket.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                <p className="text-gray-500 text-sm mb-2">{ticket.description}</p>
+                <p className="text-gray-300 text-xs">
+                  {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
               </div>
             )
           })
         )}
       </div>
+
+      {/* Footer */}
+      <footer className="text-center py-8 text-gray-400 text-sm">
+        <div className="flex justify-center gap-6 mb-3">
+          <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
+          <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
+          <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
+        </div>
+        © 2026 TimeCapsule · Made with love for families
+      </footer>
     </div>
   )
 }

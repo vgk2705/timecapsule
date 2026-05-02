@@ -39,18 +39,14 @@ export default function Dashboard() {
   }
 
   const handleEditSave = async (id) => {
-  const now = new Date().toISOString()
-  await supabase.from('capsules').update({ 
-    message: editMessage,
-    updated_at: now
-  }).eq('id', id)
-  setCapsules(capsules.map(c => c.id === id ? { 
-    ...c, 
-    message: editMessage,
-    updated_at: now
-  } : c))
-  setEditingId(null)
-}
+    const now = new Date().toISOString()
+    await supabase.from('capsules').update({
+      message: editMessage,
+      updated_at: now
+    }).eq('id', id)
+    setCapsules(capsules.map(c => c.id === id ? { ...c, message: editMessage, updated_at: now } : c))
+    setEditingId(null)
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -64,8 +60,9 @@ export default function Dashboard() {
   )
 
   return (
-    <div className="min-h-screen bg-amber-50">
-      <header className="px-6 py-5 flex items-center justify-between max-w-4xl mx-auto">
+    <div className="min-h-screen bg-amber-50 flex flex-col">
+
+      <header className="px-6 py-5 flex items-center justify-between max-w-4xl mx-auto w-full">
         <div className="flex items-center gap-2">
           <span className="text-2xl">⏳</span>
           <span className="text-xl font-semibold text-amber-900">TimeCapsule</span>
@@ -78,7 +75,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-10">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-10">
 
         {/* Upgrade banner */}
         <div className="bg-gradient-to-r from-amber-400 to-amber-500 rounded-2xl p-5 mb-8 flex items-center justify-between">
@@ -147,14 +144,14 @@ export default function Dashboard() {
                       {capsule.status === 'delivered' ? '✅ Delivered' : '🔒 Locked'}
                     </span>
                     <p className="text-xs text-gray-400 mb-1">
-                    {capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} {capsule.unlock_date}
+                      {capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} {capsule.unlock_date}
                     </p>
                     <p className="text-xs text-gray-300 mb-3">
-                    {capsule.updated_at
-                    ? `✏️ Edited ${new Date(capsule.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                    : `📅 Created ${new Date(capsule.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                     }
-                     </p>
+                      {capsule.updated_at
+                        ? `✏️ Edited ${new Date(capsule.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                        : `📅 Created ${new Date(capsule.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                      }
+                    </p>
 
                     {capsule.status === 'locked' && editingId !== capsule.id && (
                       <div className="flex gap-2 justify-end">
@@ -178,6 +175,17 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="text-center py-8 text-gray-400 text-sm">
+        <div className="flex justify-center gap-6 mb-3">
+          <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
+          <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
+          <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
+        </div>
+        © 2026 TimeCapsule · Made with love for families
+      </footer>
+
     </div>
   )
 }
