@@ -96,7 +96,7 @@ export default function DataProtection() {
             </div>
             <p className="text-sm text-gray-500 mt-4">
               To exercise any right, email us at{' '}
-              <a href="mailto:hello@mytimecapsule.app" className="text-amber-600">hello@mytimecapsule.app</a>.
+              <a href="/support" className="text-amber-600">Contact Support</a>
               We respond within 30 days.
             </p>
           </div>
