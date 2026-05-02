@@ -182,7 +182,7 @@ export default function CreateCapsule() {
               <div>
                 <div className="text-3xl mb-2">👤</div>
                 <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-1">Who is this for?</h1>
-                <p className="text-gray-400 text-sm mb-6 md:mb-8">Tell us about yourself and the person receiving this message.</p>
+                <p className="text-gray-400 text-base text-gray-900 mb-6 md:mb-8">Tell us about yourself and the person receiving this message.</p>
                 <div className="space-y-5">
 
                   <div>
@@ -190,7 +190,7 @@ export default function CreateCapsule() {
                       Your name <span className="text-red-500">*</span>
                     </label>
                     <input name="senderName" value={form.senderName} onChange={handleChange}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
                       placeholder="e.g. John" />
                   </div>
 
@@ -223,7 +223,7 @@ export default function CreateCapsule() {
                       Their name <span className="text-red-500">*</span>
                     </label>
                     <input name="recipientName" value={form.recipientName} onChange={handleChange}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
                       placeholder="e.g. Emma" />
                   </div>
 
@@ -232,7 +232,7 @@ export default function CreateCapsule() {
                       Their email <span className="text-red-500">*</span>
                     </label>
                     <input name="recipientEmail" value={form.recipientEmail} onChange={handleChange} type="email"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
                       placeholder="their@email.com" />
                   </div>
 
@@ -241,7 +241,7 @@ export default function CreateCapsule() {
                       Their date of birth <span className="text-red-500">*</span>
                     </label>
                     <input name="recipientDob" value={form.recipientDob} onChange={handleChange} type="date"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300" />
                   </div>
 
                   <p className="text-xs text-gray-400"><span className="text-red-500">*</span> Required fields</p>
@@ -285,7 +285,7 @@ export default function CreateCapsule() {
                       Choose the date <span className="text-red-500">*</span>
                     </label>
                     <input name="unlockDate" value={form.unlockDate} onChange={handleChange} type="date"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300" />
                   </div>
                 )}
 
@@ -346,7 +346,7 @@ export default function CreateCapsule() {
                       value={form.message}
                       onChange={handleChange}
                       rows={7}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
                       placeholder={`Write something from your heart to ${form.recipientName}...`}
                     />
                     <div className="flex justify-between items-center">

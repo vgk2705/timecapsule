@@ -80,7 +80,7 @@ export default function Signup() {
                 Your name <span className="text-red-500">*</span>
               </label>
               <input name="name" value={form.name} onChange={handleChange}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 placeholder="e.g. Gopala" />
             </div>
             <div>
@@ -88,7 +88,7 @@ export default function Signup() {
                 Email <span className="text-red-500">*</span>
               </label>
               <input name="email" value={form.email} onChange={handleChange} type="email"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 placeholder="you@email.com" />
             </div>
             <div>
@@ -96,7 +96,7 @@ export default function Signup() {
                 Password <span className="text-red-500">*</span>
               </label>
               <input name="password" value={form.password} onChange={handleChange} type="password"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 placeholder="minimum 6 characters" />
             </div>
             <div>
@@ -104,7 +104,7 @@ export default function Signup() {
                 Confirm password <span className="text-red-500">*</span>
               </label>
               <input name="confirmPassword" value={form.confirmPassword} onChange={handleChange} type="password"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 placeholder="repeat your password" />
             </div>
 

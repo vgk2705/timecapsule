@@ -126,13 +126,13 @@ export default function DataProtection() {
 
           {/* Contact */}
           <div className="bg-amber-500 rounded-2xl p-8 text-center">
-            <div className="text-3xl mb-3">📬</div>
-            <h2 className="text-lg font-bold text-white mb-2">Questions about your data?</h2>
-            <p className="text-amber-100 text-sm mb-4">We take data protection seriously. Reach out anytime.</p>
-            <a href="mailto:hello@mytimecapsule.app"
-              className="inline-block bg-white text-amber-600 px-6 py-3 rounded-xl font-semibold text-sm hover:bg-amber-50 transition">
-              hello@mytimecapsule.app
-            </a>
+          <div className="text-3xl mb-3">📬</div>
+          <h2 className="text-lg font-bold text-white mb-2">Questions about your data?</h2>
+          <p className="text-amber-100 text-sm mb-4">We take data protection seriously. Our support team is here to help.</p>
+          <a href="/support"
+          className="inline-block bg-white text-amber-600 px-6 py-3 rounded-xl font-semibold text-sm hover:bg-amber-50 transition">
+          Contact Support
+          </a>
           </div>
 
         </div>

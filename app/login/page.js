@@ -75,7 +75,7 @@ export default function Login() {
                 onChange={handleChange}
                 type="email"
                 autoComplete="email"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 placeholder="you@email.com"
               />
             </div>
@@ -89,7 +89,7 @@ export default function Login() {
                 onChange={handleChange}
                 type="password"
                 autoComplete="current-password"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 placeholder="your password"
               />
             </div>
