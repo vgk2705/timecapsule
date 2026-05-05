@@ -16,10 +16,12 @@ export async function GET(request) {
 
   const today = new Date().toISOString().split('T')[0]
 
+  // KEY FIX: use lte (less than or equal) instead of eq
+  // This catches any missed capsules from previous days too
   const { data: capsules, error } = await supabase
     .from('capsules')
     .select('*')
-    .eq('unlock_date', today)
+    .lte('unlock_date', today)  // ← CHANGED from .eq to .lte
     .eq('status', 'locked')
 
   if (error) return new Response('DB error', { status: 500 })
@@ -60,12 +62,12 @@ export async function GET(request) {
           </div>
 
           <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
-          This message was written with love and sealed until today — your special day.
+            This message was written with love and sealed until today — your special day.
           </p>
 
           <p style="color: #d1d5db; font-size: 12px; margin-top: 12px;">
-          📅 Written on: ${new Date(capsule.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-          ${capsule.updated_at ? `&nbsp;&nbsp;·&nbsp;&nbsp;✏️ Last edited: ${new Date(capsule.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
+            📅 Written on: ${new Date(capsule.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            ${capsule.updated_at ? `&nbsp;&nbsp;·&nbsp;&nbsp;✏️ Last edited: ${new Date(capsule.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
           </p>
 
           <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 32px 0;" />
