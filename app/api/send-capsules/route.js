@@ -10,18 +10,19 @@ const supabase = createClient(
 
 export async function GET(request) {
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const isVercelCron = request.headers.get('x-vercel-cron-signature')
+
+  // Allow Vercel internal cron OR manual trigger with secret
+  if (!isVercelCron && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response('Unauthorized', { status: 401 })
   }
 
   const today = new Date().toISOString().split('T')[0]
 
-  // KEY FIX: use lte (less than or equal) instead of eq
-  // This catches any missed capsules from previous days too
   const { data: capsules, error } = await supabase
     .from('capsules')
     .select('*')
-    .lte('unlock_date', today)  // ← CHANGED from .eq to .lte
+    .lte('unlock_date', today)
     .eq('status', 'locked')
 
   if (error) return new Response('DB error', { status: 500 })

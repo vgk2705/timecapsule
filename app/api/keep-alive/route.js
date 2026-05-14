@@ -7,15 +7,17 @@ const supabase = createClient(
 
 export async function GET(request) {
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const isVercelCron = request.headers.get('x-vercel-cron-signature')
+
+  if (!isVercelCron && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response('Unauthorized', { status: 401 })
   }
-  // Simple ping to keep database active
-  const { data, error } = await supabase
+
+  const { error } = await supabase
     .from('capsules')
     .select('count')
     .limit(1)
 
-  if (error) return new Response('Error', { status: 500 })
+  if (error) return new Response('DB Error', { status: 500 })
   return new Response('Database active ✅', { status: 200 })
 }

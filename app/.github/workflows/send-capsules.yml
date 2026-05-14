@@ -2,14 +2,24 @@ name: Send Capsules Daily
 
 on:
   schedule:
-    - cron: '0 8 * * *'  # 8am UTC daily
-  workflow_dispatch:  # allows manual trigger
+    - cron: '0 8 * * *'
+  workflow_dispatch:
 
 jobs:
-  send-capsules:
+  wake-db:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger send capsules
+      - name: Wake Supabase
+        run: |
+          curl -L \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.mytimecapsule.app/api/keep-alive
+
+  send:
+    needs: wake-db
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send capsules
         run: |
           curl -L \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
