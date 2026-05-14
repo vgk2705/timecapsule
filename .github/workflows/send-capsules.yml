@@ -1,0 +1,26 @@
+name: Send Capsules Daily
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  wake-db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake Supabase
+        run: |
+          curl -L \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.mytimecapsule.app/api/keep-alive
+
+  send:
+    needs: wake-db
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send capsules
+        run: |
+          curl -L \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.mytimecapsule.app/api/send-capsules
