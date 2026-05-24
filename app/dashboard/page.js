@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [editingId, setEditingId] = useState(null)
   const [editMessage, setEditMessage] = useState('')
   const [deleting, setDeleting] = useState(null)
+  const [subscription, setSubscription] = useState(null)
 
   useEffect(() => {
     const getUser = async () => {
@@ -16,6 +17,7 @@ export default function Dashboard() {
       if (!user) { window.location.href = '/login'; return }
       setUser(user)
       fetchCapsules(user.id)
+      fetchSubscription(user.id)
     }
     getUser()
   }, [])
@@ -28,6 +30,16 @@ export default function Dashboard() {
       .order('created_at', { ascending: false })
     setCapsules(data || [])
     setLoading(false)
+  }
+
+  const fetchSubscription = async (userId) => {
+    const { data } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .single()
+    setSubscription(data || null)
   }
 
   const handleDelete = async (id) => {
@@ -55,6 +67,16 @@ export default function Dashboard() {
 
   const firstName = user?.user_metadata?.name?.split(' ')[0] || user?.email?.split('@')[0] || ''
 
+  const planConfig = {
+    loved: { label: 'Loved 💛', bg: 'bg-amber-100', color: 'text-amber-700' },
+    forever: { label: 'Forever 👑', bg: 'bg-purple-100', color: 'text-purple-700' },
+    free: { label: 'Free', bg: 'bg-gray-100', color: 'text-gray-600' },
+  }
+
+  const currentPlan = subscription?.plan || 'free'
+  const planBadge = planConfig[currentPlan] || planConfig.free
+  const isPaid = currentPlan !== 'free'
+
   if (loading) return (
     <div className="min-h-screen bg-amber-50 flex items-center justify-center">
       <p className="text-gray-400">Loading your capsules...</p>
@@ -73,6 +95,10 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <span className="hidden sm:block text-sm text-gray-500">Hi, {firstName}</span>
+            {/* Plan badge */}
+            <span className={`text-xs px-2 py-1 rounded-full font-semibold ${planBadge.bg} ${planBadge.color}`}>
+              {planBadge.label}
+            </span>
             <a href="/pricing" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Pricing</a>
             <a href="/support" className="text-sm text-amber-600 hover:text-amber-700 font-medium">Support</a>
             <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">Log out</button>
@@ -82,16 +108,39 @@ export default function Dashboard() {
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 md:px-6 py-6 md:py-10">
 
-        {/* Upgrade banner */}
-        <div className="bg-gradient-to-r from-amber-400 to-amber-500 rounded-2xl p-4 md:p-5 mb-6 md:mb-8 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-white font-bold text-sm">🎵 Want to send audio & video capsules?</p>
-            <p className="text-amber-100 text-xs mt-0.5">Upgrade to Loved or Forever — from €2.99/mo</p>
+        {/* Upgrade banner — only show for free users */}
+        {!isPaid && (
+          <div className="bg-gradient-to-r from-amber-400 to-amber-500 rounded-2xl p-4 md:p-5 mb-6 md:mb-8 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-white font-bold text-sm">🎵 Want to send audio & video capsules?</p>
+              <p className="text-amber-100 text-xs mt-0.5">Upgrade to Loved or Forever — from ₹99/mo</p>
+            </div>
+            <a href="/upgrade" className="bg-white text-amber-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-50 transition flex-shrink-0">
+              Upgrade Now
+            </a>
           </div>
-          <a href="/pricing" className="bg-white text-amber-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-50 transition flex-shrink-0">
-            See Plans
-          </a>
-        </div>
+        )}
+
+        {/* Paid user banner */}
+        {isPaid && (
+          <div className="bg-gradient-to-r from-green-400 to-green-500 rounded-2xl p-4 md:p-5 mb-6 md:mb-8 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-white font-bold text-sm">
+                {currentPlan === 'forever' ? '👑 Forever Plan Active' : '💛 Loved Plan Active'}
+              </p>
+              <p className="text-green-100 text-xs mt-0.5">
+                Audio & video capsules unlocked ·{' '}
+                {subscription?.current_period_end
+                  ? `Renews ${new Date(subscription.current_period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                  : 'Active subscription'
+                }
+              </p>
+            </div>
+            <a href="/upgrade" className="bg-white text-green-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-50 transition flex-shrink-0">
+              Manage Plan
+            </a>
+          </div>
+        )}
 
         <div className="flex items-center justify-between mb-6 md:mb-8">
           <h1 className="text-xl md:text-2xl font-bold text-gray-800">Your Capsules</h1>
@@ -99,6 +148,21 @@ export default function Dashboard() {
             + New capsule
           </a>
         </div>
+
+        {/* Free plan limits warning */}
+        {!isPaid && capsules.length >= 2 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4">
+            <p className="text-amber-700 text-sm">
+              ⚠️ You have <strong>{capsules.length}/3</strong> free capsules used.
+              {capsules.length >= 3 ? ' Upgrade to create more.' : ''}
+            </p>
+            {capsules.length >= 3 && (
+              <a href="/upgrade" className="text-amber-600 text-sm font-bold hover:underline flex-shrink-0">
+                Upgrade →
+              </a>
+            )}
+          </div>
+        )}
 
         {capsules.length === 0 ? (
           <div className="text-center py-16 md:py-20">
