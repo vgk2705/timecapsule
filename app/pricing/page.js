@@ -3,11 +3,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../supabase'
 
-const PLANS = {
+// EUR pricing (global)
+const EUR_PLANS = {
   loved: {
-    name: 'Loved',
-    emoji: '💛',
-    description: 'For families who want to preserve every memory',
     pricing: {
       monthly: { price: 2.99, label: 'month', saving: null },
       yearly: { price: 29.90, label: 'year', saving: '2mo free' },
@@ -16,14 +14,31 @@ const PLANS = {
     }
   },
   forever: {
-    name: 'Forever',
-    emoji: '👑',
-    description: 'For those leaving a legacy across generations',
     pricing: {
       monthly: { price: 4.99, label: 'month', saving: null },
       yearly: { price: 49.90, label: 'year', saving: '2mo free' },
       fiveYear: { price: 239.52, label: '5yrs', saving: '1yr free' },
       tenYear: { price: 479.04, label: '10yrs', saving: '2yrs free' },
+    }
+  }
+}
+
+// INR pricing (India only — fixed prices)
+const INR_PLANS = {
+  loved: {
+    pricing: {
+      monthly: { price: 99, label: 'month', saving: null },
+      yearly: { price: 990, label: 'year', saving: '2mo free' },
+      fiveYear: { price: 4752, label: '5yrs', saving: '1yr free' },
+      tenYear: { price: 9504, label: '10yrs', saving: '2yrs free' },
+    }
+  },
+  forever: {
+    pricing: {
+      monthly: { price: 249, label: 'month', saving: null },
+      yearly: { price: 2490, label: 'year', saving: '2mo free' },
+      fiveYear: { price: 11952, label: '5yrs', saving: '1yr free' },
+      tenYear: { price: 23904, label: '10yrs', saving: '2yrs free' },
     }
   }
 }
@@ -39,7 +54,8 @@ export default function PricingPage() {
   const router = useRouter()
   const [period, setPeriod] = useState('monthly')
   const [user, setUser] = useState(null)
-  const [currency, setCurrency] = useState({ symbol: '€', code: 'EUR', rate: 1, country: '' })
+  const [isIndia, setIsIndia] = useState(false)
+  const [currency, setCurrency] = useState({ symbol: '€', code: 'EUR', country: '' })
   const [currencyLoading, setCurrencyLoading] = useState(true)
 
   useEffect(() => {
@@ -50,44 +66,62 @@ export default function PricingPage() {
     fetch('https://ipapi.co/json/')
       .then(r => r.json())
       .then(data => {
-        const currencyMap = {
-          'IN': { symbol: '₹', code: 'INR', rate: 90, country: 'India' },
-          'US': { symbol: '$', code: 'USD', rate: 1.08, country: 'USA' },
-          'GB': { symbol: '£', code: 'GBP', rate: 0.85, country: 'UK' },
-          'AU': { symbol: 'A$', code: 'AUD', rate: 1.65, country: 'Australia' },
-          'CA': { symbol: 'C$', code: 'CAD', rate: 1.47, country: 'Canada' },
-          'SG': { symbol: 'S$', code: 'SGD', rate: 1.45, country: 'Singapore' },
-          'AE': { symbol: 'AED', code: 'AED', rate: 3.97, country: 'UAE' },
-          'MY': { symbol: 'RM', code: 'MYR', rate: 5.05, country: 'Malaysia' },
-          'NZ': { symbol: 'NZ$', code: 'NZD', rate: 1.78, country: 'New Zealand' },
-          'JP': { symbol: '¥', code: 'JPY', rate: 163, country: 'Japan' },
-          'NL': { symbol: '€', code: 'EUR', rate: 1, country: 'Netherlands' },
-          'DE': { symbol: '€', code: 'EUR', rate: 1, country: 'Germany' },
-          'FR': { symbol: '€', code: 'EUR', rate: 1, country: 'France' },
-          'IT': { symbol: '€', code: 'EUR', rate: 1, country: 'Italy' },
-          'ES': { symbol: '€', code: 'EUR', rate: 1, country: 'Spain' },
-          'BE': { symbol: '€', code: 'EUR', rate: 1, country: 'Belgium' },
+        const countryCode = data.country_code
+
+        if (countryCode === 'IN') {
+          setIsIndia(true)
+          setCurrency({ symbol: '₹', code: 'INR', country: 'India' })
+        } else {
+          const currencyMap = {
+            'US': { symbol: '$', code: 'USD', rate: 1.08, country: 'USA' },
+            'GB': { symbol: '£', code: 'GBP', rate: 0.85, country: 'UK' },
+            'AU': { symbol: 'A$', code: 'AUD', rate: 1.65, country: 'Australia' },
+            'CA': { symbol: 'C$', code: 'CAD', rate: 1.47, country: 'Canada' },
+            'SG': { symbol: 'S$', code: 'SGD', rate: 1.45, country: 'Singapore' },
+            'AE': { symbol: 'AED', code: 'AED', rate: 3.97, country: 'UAE' },
+            'MY': { symbol: 'RM', code: 'MYR', rate: 5.05, country: 'Malaysia' },
+            'NZ': { symbol: 'NZ$', code: 'NZD', rate: 1.78, country: 'New Zealand' },
+            'JP': { symbol: '¥', code: 'JPY', rate: 163, country: 'Japan' },
+            'NL': { symbol: '€', code: 'EUR', rate: 1, country: 'Netherlands' },
+            'DE': { symbol: '€', code: 'EUR', rate: 1, country: 'Germany' },
+            'FR': { symbol: '€', code: 'EUR', rate: 1, country: 'France' },
+            'IT': { symbol: '€', code: 'EUR', rate: 1, country: 'Italy' },
+            'ES': { symbol: '€', code: 'EUR', rate: 1, country: 'Spain' },
+            'BE': { symbol: '€', code: 'EUR', rate: 1, country: 'Belgium' },
+          }
+          const detected = currencyMap[countryCode]
+          if (detected) {
+            setCurrency({ ...detected })
+          }
         }
-        const detected = currencyMap[data.country_code]
-        if (detected) setCurrency(detected)
         setCurrencyLoading(false)
       })
       .catch(() => setCurrencyLoading(false))
   }, [])
 
-  const formatPrice = (euroPrice) => {
-    const converted = euroPrice * currency.rate
-    if (currency.code === 'INR' || currency.code === 'JPY') {
-      return `${currency.symbol}${Math.round(converted)}`
+  // Get correct plans based on country
+  const PLANS = isIndia ? INR_PLANS : EUR_PLANS
+
+  const formatPrice = (price) => {
+    if (isIndia) return `₹${price.toLocaleString('en-IN')}`
+    if (currency.rate) {
+      const converted = price * (currency.rate || 1)
+      if (currency.code === 'JPY') return `${currency.symbol}${Math.round(converted)}`
+      return `${currency.symbol}${converted.toFixed(2)}`
     }
-    return `${currency.symbol}${converted.toFixed(2)}`
+    return `€${price.toFixed(2)}`
   }
 
-  const priceNote = currency.code !== 'EUR'
+  const priceNote = isIndia
+    ? 'Indian pricing via Razorpay · UPI, cards, GPay accepted'
+    : currency.code !== 'EUR'
     ? `Approx. in ${currency.code}. Charged in EUR.`
     : null
 
   const firstName = user?.user_metadata?.name?.split(' ')[0] || user?.email?.split('@')[0] || ''
+
+  // Upgrade link — India goes to /upgrade (Razorpay), others go to /upgrade too for now
+  const upgradeLink = user ? '/upgrade' : '/signup'
 
   return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
@@ -143,7 +177,7 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* Billing period toggle — scrollable on mobile */}
+        {/* Billing period toggle */}
         <div className="flex justify-center mb-8 md:mb-12">
           <div className="bg-white rounded-2xl p-1 md:p-1.5 flex gap-1 shadow-sm overflow-x-auto max-w-full">
             {Object.entries(PERIOD_LABELS).map(([key, label]) => (
@@ -167,7 +201,7 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* Plans — stacked on mobile, 3 cols on desktop */}
+        {/* Plans grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start">
 
           {/* Free Plan */}
@@ -215,7 +249,7 @@ export default function PricingPage() {
                 </div>
               )}
             </div>
-            <a href={user ? '/dashboard' : '/signup'}
+            <a href={upgradeLink}
               className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-medium transition mb-6 text-sm md:text-base">
               {user ? 'Upgrade to Loved' : 'Start Loved plan'}
             </a>
@@ -250,7 +284,7 @@ export default function PricingPage() {
                 </div>
               )}
             </div>
-            <a href={user ? '/dashboard' : '/signup'}
+            <a href={upgradeLink}
               className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-xl font-medium transition mb-6 text-sm md:text-base">
               {user ? 'Upgrade to Forever' : 'Start Forever plan'}
             </a>
@@ -267,8 +301,17 @@ export default function PricingPage() {
 
         </div>
 
+        {/* India payment note */}
+        {isIndia && (
+          <div className="mt-6 bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+            <p className="text-green-700 text-sm font-medium">
+              🇮🇳 Indian pricing available · Pay via UPI, GPay, PhonePe, Paytm, Cards & more
+            </p>
+          </div>
+        )}
+
         {/* Refund policy */}
-        <div className="mt-8 md:mt-12 bg-white rounded-2xl p-6 md:p-8 shadow-sm text-center">
+        <div className="mt-6 md:mt-8 bg-white rounded-2xl p-6 md:p-8 shadow-sm text-center">
           <div className="text-3xl mb-3">🛡️</div>
           <h3 className="text-lg font-bold text-gray-800 mb-2">Fair Refund Policy</h3>
           <p className="text-gray-500 text-sm max-w-2xl mx-auto">
@@ -283,7 +326,7 @@ export default function PricingPage() {
           {[
             { q: 'What happens if I cancel?', a: 'Your text capsules are safe forever. Audio and video are kept for 6 months after cancellation, then removed.' },
             { q: 'Can I upgrade or downgrade anytime?', a: 'Yes! You can switch plans anytime. Billing adjusts from your next payment date.' },
-            { q: 'What payment methods are accepted?', a: 'We accept all major cards, UPI, iDEAL, Google Pay, Apple Pay and more — depending on your country.' },
+            { q: 'What payment methods are accepted?', a: isIndia ? 'UPI, Google Pay, PhonePe, Paytm, credit/debit cards, net banking and EMI.' : 'We accept all major cards, iDEAL, Google Pay, Apple Pay and more — depending on your country.' },
             { q: 'Is my data secure?', a: 'Yes. All capsules are encrypted and stored securely. Only the recipient receives the message on the unlock date.' },
           ].map((faq, i) => (
             <div key={i} className="bg-white rounded-2xl p-5 md:p-6 shadow-sm">
@@ -293,7 +336,6 @@ export default function PricingPage() {
           ))}
         </div>
 
-        {/* Support link */}
         <div className="mt-6 text-center">
           <p className="text-gray-400 text-sm">
             Have questions? <a href="/support" className="text-amber-600 hover:underline font-medium">Contact Support</a>
