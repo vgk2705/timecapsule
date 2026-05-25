@@ -54,11 +54,48 @@ export default function CreateCapsule() {
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [wordCount, setWordCount] = useState(0)
+  const [isPaid, setIsPaid] = useState(false)
+  const [capsuleCount, setCapsuleCount] = useState(0)
+  const [limitReached, setLimitReached] = useState(false)
+  const [isIndia, setIsIndia] = useState(false)
 
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.href = '/login'; return }
+
+      // Check subscription
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('plan, status')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single()
+
+      const paid = sub && (sub.plan === 'loved' || sub.plan === 'forever')
+      setIsPaid(paid)
+
+      // Check capsule count for free users
+      if (!paid) {
+        const { data: capsules } = await supabase
+          .from('capsules')
+          .select('id')
+          .eq('sender_id', user.id)
+        const count = capsules?.length || 0
+        setCapsuleCount(count)
+        if (count >= 3) {
+          setLimitReached(true)
+          return
+        }
+      }
+
+      // Detect India
+      fetch('https://ipapi.co/json/')
+        .then(r => r.json())
+        .then(data => { if (data.country_code === 'IN') setIsIndia(true) })
+        .catch(() => {})
+
+      // Restore saved form
       const savedForm = sessionStorage.getItem('capsuleForm')
       const savedStep = sessionStorage.getItem('capsuleStep')
       const savedMessageType = sessionStorage.getItem('capsuleMessageType')
@@ -112,7 +149,7 @@ export default function CreateCapsule() {
     sessionStorage.setItem('capsuleForm', JSON.stringify(form))
     sessionStorage.setItem('capsuleStep', step.toString())
     sessionStorage.setItem('capsuleMessageType', messageType)
-    router.push('/pricing')
+    router.push('/upgrade')
   }
 
   const handleSubmit = async () => {
@@ -133,6 +170,38 @@ export default function CreateCapsule() {
     if (!error) setSubmitted(true)
     else alert('Something went wrong. Please try again.')
   }
+
+  // Capsule limit reached for free users
+  if (limitReached) return (
+    <div className="min-h-screen bg-amber-50 flex flex-col">
+      <div className="flex-1 flex items-center justify-center px-4">
+        <div className="text-center p-6 md:p-10 max-w-md">
+          <div className="text-6xl mb-6">🔒</div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Free limit reached</h1>
+          <p className="text-gray-500 mb-2">You've used all <strong>3 free capsules</strong>.</p>
+          <p className="text-gray-500 mb-8">Upgrade to create unlimited capsules + unlock audio & video messages.</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a href="/upgrade"
+              className="bg-amber-500 text-white px-6 py-3 rounded-full hover:bg-amber-600 transition text-center font-semibold">
+              Upgrade Now {isIndia ? '— ₹99/mo' : '— €2.99/mo'}
+            </a>
+            <a href="/dashboard"
+              className="border border-gray-300 text-gray-600 px-6 py-3 rounded-full hover:border-gray-400 transition text-center">
+              Back to Dashboard
+            </a>
+          </div>
+        </div>
+      </div>
+      <footer className="text-center py-6 text-gray-400 text-sm px-4">
+        <div className="flex flex-wrap justify-center gap-4 mb-3">
+          <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
+          <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
+          <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
+        </div>
+        © 2026 TimeCapsule · Made with love for families
+      </footer>
+    </div>
+  )
 
   if (submitted) return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
@@ -168,6 +237,18 @@ export default function CreateCapsule() {
         <div className="max-w-xl mx-auto">
           <a href="/dashboard" className="text-amber-600 text-sm mb-6 md:mb-8 inline-block">← Back to dashboard</a>
 
+          {/* Free plan capsule counter */}
+          {!isPaid && (
+            <div className={`rounded-xl px-4 py-2 mb-4 text-sm text-center ${
+              capsuleCount >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {capsuleCount}/3 free capsules used
+              {capsuleCount >= 2 && (
+                <a href="/upgrade" className="ml-2 font-bold underline">Upgrade for unlimited</a>
+              )}
+            </div>
+          )}
+
           {/* Progress */}
           <div className="flex items-center gap-2 mb-6 md:mb-8">
             {[1,2,3].map(s => (
@@ -182,9 +263,8 @@ export default function CreateCapsule() {
               <div>
                 <div className="text-3xl mb-2">👤</div>
                 <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-1">Who is this for?</h1>
-                <p className="text-gray-400 text-base text-gray-900 mb-6 md:mb-8">Tell us about yourself and the person receiving this message.</p>
+                <p className="text-gray-400 text-sm mb-6 md:mb-8">Tell us about yourself and the person receiving this message.</p>
                 <div className="space-y-5">
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Your name <span className="text-red-500">*</span>
@@ -198,19 +278,13 @@ export default function CreateCapsule() {
                     <label className="block text-sm font-medium text-gray-700 mb-3">
                       Your relationship to recipient <span className="text-red-500">*</span>
                     </label>
-                    {/* 4 cols on mobile, 5 on desktop */}
                     <div className="grid grid-cols-4 md:grid-cols-5 gap-2">
                       {RELATIONSHIPS.map(r => (
-                        <button
-                          key={r.id}
-                          type="button"
+                        <button key={r.id} type="button"
                           onClick={() => setForm({ ...form, relationship: r.id })}
                           className={`flex flex-col items-center p-1.5 md:p-2 rounded-xl border-2 transition text-center ${
-                            form.relationship === r.id
-                              ? 'border-amber-500 bg-amber-50'
-                              : 'border-gray-200 hover:border-amber-300'
-                          }`}
-                        >
+                            form.relationship === r.id ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'
+                          }`}>
                           <span className="text-lg md:text-xl mb-1">{r.emoji}</span>
                           <span className="text-xs text-gray-600 font-medium leading-tight">{r.label}</span>
                         </button>
@@ -246,8 +320,7 @@ export default function CreateCapsule() {
 
                   <p className="text-xs text-gray-400"><span className="text-red-500">*</span> Required fields</p>
 
-                  <button
-                    onClick={() => setStep(2)}
+                  <button onClick={() => setStep(2)}
                     disabled={!form.senderName || !form.relationship || !form.recipientName || !form.recipientEmail}
                     className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-4 rounded-xl font-medium transition">
                     Next →
@@ -317,18 +390,13 @@ export default function CreateCapsule() {
                     { id: 'audio', emoji: '🎵', label: 'Audio' },
                     { id: 'video', emoji: '🎥', label: 'Video' },
                   ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setMessageType(tab.id)}
+                    <button key={tab.id} onClick={() => setMessageType(tab.id)}
                       className={`flex-1 flex items-center justify-center gap-1 md:gap-2 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-medium transition ${
-                        messageType === tab.id
-                          ? 'bg-white text-amber-600 shadow-sm'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
+                        messageType === tab.id ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}>
                       <span>{tab.emoji}</span>
                       <span>{tab.label}</span>
-                      {tab.id !== 'text' && (
+                      {tab.id !== 'text' && !isPaid && (
                         <span className="bg-amber-100 text-amber-600 text-xs px-1 md:px-1.5 py-0.5 rounded-full">Pro</span>
                       )}
                     </button>
@@ -341,27 +409,24 @@ export default function CreateCapsule() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Your message <span className="text-red-500">*</span>
                     </label>
-                    <textarea
-                      name="message"
-                      value={form.message}
-                      onChange={handleChange}
-                      rows={7}
+                    <textarea name="message" value={form.message} onChange={handleChange} rows={7}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
-                      placeholder={`Write something from your heart to ${form.recipientName}...`}
-                    />
+                      placeholder={`Write something from your heart to ${form.recipientName}...`} />
                     <div className="flex justify-between items-center">
-                      <p className={`text-xs ${wordCount > 5000 ? 'text-red-500' : 'text-gray-400'}`}>
-                        {wordCount} / 5,000 words
+                      <p className={`text-xs ${wordCount > 5000 && !isPaid ? 'text-red-500' : 'text-gray-400'}`}>
+                        {isPaid ? `${wordCount} words` : `${wordCount} / 5,000 words`}
                       </p>
-                      {wordCount > 5000 && (
-                        <p className="text-xs text-red-500">Upgrade to Loved for unlimited</p>
+                      {wordCount > 5000 && !isPaid && (
+                        <p className="text-xs text-red-500">
+                          <a href="/upgrade" className="underline">Upgrade</a> for unlimited words
+                        </p>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Audio — Premium locked */}
-                {messageType === 'audio' && (
+                {/* Audio */}
+                {messageType === 'audio' && !isPaid && (
                   <div className="border-2 border-dashed border-amber-200 rounded-xl p-6 md:p-8 text-center bg-amber-50">
                     <div className="text-4xl md:text-5xl mb-3 md:mb-4">🎵</div>
                     <h3 className="text-base md:text-lg font-bold text-gray-800 mb-2">Audio Messages</h3>
@@ -373,13 +438,25 @@ export default function CreateCapsule() {
                     <p className="text-gray-500 text-sm mb-4 md:mb-5">Available on <strong>Loved</strong> and <strong>Forever</strong> plans</p>
                     <button onClick={goToPricing}
                       className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-5 md:px-6 py-3 rounded-xl font-medium transition text-sm">
-                      View Plans — from €2.99/mo
+                      Upgrade — {isIndia ? 'from ₹99/mo' : 'from €2.99/mo'}
                     </button>
                   </div>
                 )}
 
-                {/* Video — Premium locked */}
-                {messageType === 'video' && (
+                {/* Audio unlocked for paid */}
+                {messageType === 'audio' && isPaid && (
+                  <div className="border-2 border-green-200 rounded-xl p-6 text-center bg-green-50">
+                    <div className="text-4xl mb-3">🎵</div>
+                    <h3 className="text-base font-bold text-gray-800 mb-2">Audio Messages</h3>
+                    <p className="text-gray-500 text-sm mb-4">Upload an audio file or record your voice.</p>
+                    <input type="file" accept="audio/*"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white" />
+                    <p className="text-gray-400 text-xs mt-2">Supports MP3, WAV · Max 50MB per file</p>
+                  </div>
+                )}
+
+                {/* Video */}
+                {messageType === 'video' && !isPaid && (
                   <div className="border-2 border-dashed border-amber-200 rounded-xl p-6 md:p-8 text-center bg-amber-50">
                     <div className="text-4xl md:text-5xl mb-3 md:mb-4">🎥</div>
                     <h3 className="text-base md:text-lg font-bold text-gray-800 mb-2">Video Messages</h3>
@@ -391,8 +468,20 @@ export default function CreateCapsule() {
                     <p className="text-gray-500 text-sm mb-4 md:mb-5">Available on <strong>Loved</strong> and <strong>Forever</strong> plans</p>
                     <button onClick={goToPricing}
                       className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-5 md:px-6 py-3 rounded-xl font-medium transition text-sm">
-                      View Plans — from €2.99/mo
+                      Upgrade — {isIndia ? 'from ₹99/mo' : 'from €2.99/mo'}
                     </button>
+                  </div>
+                )}
+
+                {/* Video unlocked for paid */}
+                {messageType === 'video' && isPaid && (
+                  <div className="border-2 border-green-200 rounded-xl p-6 text-center bg-green-50">
+                    <div className="text-4xl mb-3">🎥</div>
+                    <h3 className="text-base font-bold text-gray-800 mb-2">Video Messages</h3>
+                    <p className="text-gray-500 text-sm mb-4">Upload a video file.</p>
+                    <input type="file" accept="video/*"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white" />
+                    <p className="text-gray-400 text-xs mt-2">Supports MP4 · Max 500MB per file</p>
                   </div>
                 )}
 
@@ -401,15 +490,14 @@ export default function CreateCapsule() {
                     className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">
                     ← Back
                   </button>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={loading || messageType !== 'text' || !form.message || wordCount > 5000}
+                  <button onClick={handleSubmit}
+                    disabled={loading || messageType !== 'text' || !form.message || (wordCount > 5000 && !isPaid)}
                     className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm">
                     {loading ? 'Sealing...' : 'Seal capsule 🔒'}
                   </button>
                 </div>
 
-                {messageType !== 'text' && (
+                {messageType !== 'text' && !isPaid && (
                   <p className="text-center text-xs text-gray-400 mt-3">
                     Switch to Text tab to seal your capsule for now.
                   </p>

@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../supabase'
 
-// EUR pricing (global)
 const EUR_PLANS = {
   loved: {
     pricing: {
@@ -23,7 +22,6 @@ const EUR_PLANS = {
   }
 }
 
-// INR pricing (India only — fixed prices)
 const INR_PLANS = {
   loved: {
     pricing: {
@@ -56,7 +54,7 @@ export default function PricingPage() {
   const [user, setUser] = useState(null)
   const [isIndia, setIsIndia] = useState(false)
   const [currency, setCurrency] = useState({ symbol: '€', code: 'EUR', country: '' })
-  const [currencyLoading, setCurrencyLoading] = useState(true)
+  const [locationLoaded, setLocationLoaded] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -67,7 +65,6 @@ export default function PricingPage() {
       .then(r => r.json())
       .then(data => {
         const countryCode = data.country_code
-
         if (countryCode === 'IN') {
           setIsIndia(true)
           setCurrency({ symbol: '₹', code: 'INR', country: 'India' })
@@ -90,19 +87,17 @@ export default function PricingPage() {
             'BE': { symbol: '€', code: 'EUR', rate: 1, country: 'Belgium' },
           }
           const detected = currencyMap[countryCode]
-          if (detected) {
-            setCurrency({ ...detected })
-          }
+          if (detected) setCurrency({ ...detected })
         }
-        setCurrencyLoading(false)
+        setLocationLoaded(true)
       })
-      .catch(() => setCurrencyLoading(false))
+      .catch(() => setLocationLoaded(true))
   }, [])
 
-  // Get correct plans based on country
   const PLANS = isIndia ? INR_PLANS : EUR_PLANS
 
   const formatPrice = (price) => {
+    if (!locationLoaded) return '...'
     if (isIndia) return `₹${price.toLocaleString('en-IN')}`
     if (currency.rate) {
       const converted = price * (currency.rate || 1)
@@ -112,15 +107,13 @@ export default function PricingPage() {
     return `€${price.toFixed(2)}`
   }
 
-  const priceNote = isIndia
+  const priceNote = !locationLoaded ? null : isIndia
     ? 'Indian pricing via Razorpay · UPI, cards, GPay accepted'
     : currency.code !== 'EUR'
     ? `Approx. in ${currency.code}. Charged in EUR.`
     : null
 
   const firstName = user?.user_metadata?.name?.split(' ')[0] || user?.email?.split('@')[0] || ''
-
-  // Upgrade link — India goes to /upgrade (Razorpay), others go to /upgrade too for now
   const upgradeLink = user ? '/upgrade' : '/signup'
 
   return (
@@ -157,23 +150,20 @@ export default function PricingPage() {
 
         {/* Back + Heading */}
         <div className="mb-8 md:mb-12">
-          <button
-            onClick={() => router.back()}
+          <button onClick={() => router.back()}
             className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700 font-semibold text-base mb-6 md:mb-8">
             ← Back
           </button>
           <div className="text-center">
             <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 md:mb-4">Simple, honest pricing</h1>
             <p className="text-gray-500 text-base md:text-lg">Start free. Upgrade when you're ready.</p>
-            {!currencyLoading && currency.country && (
+            {locationLoaded && currency.country && (
               <div className="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-full px-3 md:px-4 py-1.5 mt-3 md:mt-4 text-xs md:text-sm text-gray-500 shadow-sm">
                 <span>📍</span>
                 <span>Showing prices for <strong>{currency.country}</strong> in <strong>{currency.code}</strong></span>
               </div>
             )}
-            {priceNote && (
-              <p className="text-xs text-gray-400 mt-2">{priceNote}</p>
-            )}
+            {priceNote && <p className="text-xs text-gray-400 mt-2">{priceNote}</p>}
           </div>
         </div>
 
@@ -181,13 +171,10 @@ export default function PricingPage() {
         <div className="flex justify-center mb-8 md:mb-12">
           <div className="bg-white rounded-2xl p-1 md:p-1.5 flex gap-1 shadow-sm overflow-x-auto max-w-full">
             {Object.entries(PERIOD_LABELS).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setPeriod(key)}
+              <button key={key} onClick={() => setPeriod(key)}
                 className={`px-3 md:px-5 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-medium transition whitespace-nowrap flex-shrink-0 ${
                   period === key ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
+                }`}>
                 {label}
                 {key !== 'monthly' && (
                   <span className={`ml-1 md:ml-2 text-xs px-1.5 py-0.5 rounded-full ${
@@ -204,13 +191,13 @@ export default function PricingPage() {
         {/* Plans grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start">
 
-          {/* Free Plan */}
+          {/* Free */}
           <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
             <div className="text-3xl mb-3">🆓</div>
             <h2 className="text-xl font-bold text-gray-800 mb-1">Free</h2>
             <p className="text-gray-400 text-sm mb-5">Try it out, no card needed</p>
             <div className="mb-5">
-              <span className="text-3xl md:text-4xl font-bold text-gray-900">{currency.symbol}0</span>
+              <span className="text-3xl md:text-4xl font-bold text-gray-900">{isIndia ? '₹' : currency.symbol}0</span>
               <span className="text-gray-400 text-sm ml-1">forever</span>
             </div>
             <a href={user ? '/dashboard' : '/signup'}
@@ -230,7 +217,7 @@ export default function PricingPage() {
             </ul>
           </div>
 
-          {/* Loved Plan */}
+          {/* Loved */}
           <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border-2 border-amber-500 relative">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap">
               MOST POPULAR
@@ -240,7 +227,7 @@ export default function PricingPage() {
             <p className="text-gray-400 text-sm mb-5">For families preserving every memory</p>
             <div className="mb-5">
               <span className="text-3xl md:text-4xl font-bold text-gray-900">
-                {currencyLoading ? '...' : formatPrice(PLANS.loved.pricing[period].price)}
+                {formatPrice(PLANS.loved.pricing[period].price)}
               </span>
               <span className="text-gray-400 text-sm ml-1">/ {PLANS.loved.pricing[period].label}</span>
               {PLANS.loved.pricing[period].saving && (
@@ -268,14 +255,14 @@ export default function PricingPage() {
             </ul>
           </div>
 
-          {/* Forever Plan */}
+          {/* Forever */}
           <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
             <div className="text-3xl mb-3">👑</div>
             <h2 className="text-xl font-bold text-gray-800 mb-1">Forever</h2>
             <p className="text-gray-400 text-sm mb-5">For legacies across generations</p>
             <div className="mb-5">
               <span className="text-3xl md:text-4xl font-bold text-gray-900">
-                {currencyLoading ? '...' : formatPrice(PLANS.forever.pricing[period].price)}
+                {formatPrice(PLANS.forever.pricing[period].price)}
               </span>
               <span className="text-gray-400 text-sm ml-1">/ {PLANS.forever.pricing[period].label}</span>
               {PLANS.forever.pricing[period].saving && (
@@ -305,7 +292,7 @@ export default function PricingPage() {
         {isIndia && (
           <div className="mt-6 bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
             <p className="text-green-700 text-sm font-medium">
-              🇮🇳 Indian pricing available · Pay via UPI, GPay, PhonePe, Paytm, Cards & more
+              🇮🇳 Indian pricing · Pay via UPI, GPay, PhonePe, Paytm, Cards & more
             </p>
           </div>
         )}
@@ -352,7 +339,6 @@ export default function PricingPage() {
         </div>
         © 2026 TimeCapsule · Made with love for families
       </footer>
-
     </div>
   )
 }
