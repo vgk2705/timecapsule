@@ -58,6 +58,8 @@ export default function CreateCapsule() {
   const [capsuleCount, setCapsuleCount] = useState(0)
   const [limitReached, setLimitReached] = useState(false)
   const [isIndia, setIsIndia] = useState(false)
+  const [audioFile, setAudioFile] = useState(null)
+  const [videoFile, setVideoFile] = useState(null)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -160,18 +162,47 @@ export default function CreateCapsule() {
       relationship: form.relationship,
       recipient_name: form.recipientName,
       recipient_email: form.recipientEmail,
-      message: form.message,
+      message: form.message || '',
       unlock_date: form.unlockDate,
       status: 'locked'
     }
     if (user) insertData.sender_id = user.id
+
+    // TODO: upload audio/video to Cloudflare R2 and save URL
+    // For now just save the capsule record
+    if (messageType === 'audio' && audioFile) {
+      insertData.media_type = 'audio'
+      insertData.message = `[Audio message: ${audioFile.name}]`
+    }
+    if (messageType === 'video' && videoFile) {
+      insertData.media_type = 'video'
+      insertData.message = `[Video message: ${videoFile.name}]`
+    }
+
     const { error } = await supabase.from('capsules').insert(insertData)
     setLoading(false)
     if (!error) setSubmitted(true)
     else alert('Something went wrong. Please try again.')
   }
 
-  // Capsule limit reached for free users
+  // Is seal button disabled?
+  const isSealDisabled = () => {
+    if (loading) return true
+    if (messageType === 'text') {
+      return !form.message || (wordCount > 5000 && !isPaid)
+    }
+    if (messageType === 'audio') {
+      if (!isPaid) return true
+      return !audioFile
+    }
+    if (messageType === 'video') {
+      if (!isPaid) return true
+      return !videoFile
+    }
+    return true
+  }
+
+  // Capsule limit reached
   if (limitReached) return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
       <div className="flex-1 flex items-center justify-center px-4">
@@ -203,13 +234,16 @@ export default function CreateCapsule() {
     </div>
   )
 
+  // Submitted success
   if (submitted) return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center p-6 md:p-10">
           <div className="text-6xl mb-6">💌</div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Your capsule is sealed!</h1>
-          <p className="text-gray-500 text-base md:text-lg">It will be delivered to <strong>{form.recipientName}</strong> on <strong>{form.unlockDate}</strong>.</p>
+          <p className="text-gray-500 text-base md:text-lg">
+            It will be delivered to <strong>{form.recipientName}</strong> on <strong>{form.unlockDate}</strong>.
+          </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
             <a href="/dashboard" className="bg-amber-500 text-white px-6 py-3 rounded-full hover:bg-amber-600 transition text-center">
               View my capsules
@@ -265,6 +299,7 @@ export default function CreateCapsule() {
                 <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-1">Who is this for?</h1>
                 <p className="text-gray-400 text-sm mb-6 md:mb-8">Tell us about yourself and the person receiving this message.</p>
                 <div className="space-y-5">
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Your name <span className="text-red-500">*</span>
@@ -338,7 +373,9 @@ export default function CreateCapsule() {
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   {MILESTONES.map(m => (
                     <button key={m.id} onClick={() => handleMilestone(m.id)}
-                      className={`p-3 md:p-4 rounded-xl border-2 text-left transition ${form.milestone === m.id ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'}`}>
+                      className={`p-3 md:p-4 rounded-xl border-2 text-left transition ${
+                        form.milestone === m.id ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'
+                      }`}>
                       <div className="text-xl md:text-2xl mb-1">{m.emoji}</div>
                       <div className="text-xs md:text-sm font-medium text-gray-800">{m.label}</div>
                       <div className="text-xs text-gray-400 hidden md:block">{m.description}</div>
@@ -363,7 +400,8 @@ export default function CreateCapsule() {
                 )}
 
                 <div className="flex gap-3">
-                  <button onClick={() => setStep(1)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">
+                  <button onClick={() => setStep(1)}
+                    className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">
                     ← Back
                   </button>
                   <button onClick={() => setStep(3)} disabled={!form.milestone || !form.unlockDate}
@@ -403,7 +441,7 @@ export default function CreateCapsule() {
                   ))}
                 </div>
 
-                {/* Text */}
+                {/* Text message */}
                 {messageType === 'text' && (
                   <div className="space-y-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -418,14 +456,14 @@ export default function CreateCapsule() {
                       </p>
                       {wordCount > 5000 && !isPaid && (
                         <p className="text-xs text-red-500">
-                          <a href="/upgrade" className="underline">Upgrade</a> for unlimited words
+                          <a href="/upgrade" className="underline">Upgrade</a> for unlimited
                         </p>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Audio */}
+                {/* Audio — locked for free users */}
                 {messageType === 'audio' && !isPaid && (
                   <div className="border-2 border-dashed border-amber-200 rounded-xl p-6 md:p-8 text-center bg-amber-50">
                     <div className="text-4xl md:text-5xl mb-3 md:mb-4">🎵</div>
@@ -443,19 +481,31 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Audio unlocked for paid */}
+                {/* Audio — unlocked for paid users */}
                 {messageType === 'audio' && isPaid && (
-                  <div className="border-2 border-green-200 rounded-xl p-6 text-center bg-green-50">
+                  <div className={`border-2 rounded-xl p-6 text-center ${
+                    audioFile ? 'border-green-300 bg-green-50' : 'border-green-200 bg-green-50'
+                  }`}>
                     <div className="text-4xl mb-3">🎵</div>
-                    <h3 className="text-base font-bold text-gray-800 mb-2">Audio Messages</h3>
+                    <h3 className="text-base font-bold text-gray-800 mb-2">Audio Message</h3>
                     <p className="text-gray-500 text-sm mb-4">Upload an audio file or record your voice.</p>
-                    <input type="file" accept="audio/*"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white" />
-                    <p className="text-gray-400 text-xs mt-2">Supports MP3, WAV · Max 50MB per file</p>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={e => setAudioFile(e.target.files[0])}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer"
+                    />
+                    {audioFile && (
+                      <div className="mt-3 bg-white rounded-xl p-3 border border-green-200">
+                        <p className="text-sm text-green-700 font-medium">✅ Selected: {audioFile.name}</p>
+                        <p className="text-xs text-gray-400 mt-1">{(audioFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      </div>
+                    )}
+                    <p className="text-gray-400 text-xs mt-3">Supports MP3, WAV, M4A · Max 50MB per file</p>
                   </div>
                 )}
 
-                {/* Video */}
+                {/* Video — locked for free users */}
                 {messageType === 'video' && !isPaid && (
                   <div className="border-2 border-dashed border-amber-200 rounded-xl p-6 md:p-8 text-center bg-amber-50">
                     <div className="text-4xl md:text-5xl mb-3 md:mb-4">🎥</div>
@@ -473,35 +523,63 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Video unlocked for paid */}
+                {/* Video — unlocked for paid users */}
                 {messageType === 'video' && isPaid && (
-                  <div className="border-2 border-green-200 rounded-xl p-6 text-center bg-green-50">
+                  <div className={`border-2 rounded-xl p-6 text-center ${
+                    videoFile ? 'border-green-300 bg-green-50' : 'border-green-200 bg-green-50'
+                  }`}>
                     <div className="text-4xl mb-3">🎥</div>
-                    <h3 className="text-base font-bold text-gray-800 mb-2">Video Messages</h3>
+                    <h3 className="text-base font-bold text-gray-800 mb-2">Video Message</h3>
                     <p className="text-gray-500 text-sm mb-4">Upload a video file.</p>
-                    <input type="file" accept="video/*"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white" />
-                    <p className="text-gray-400 text-xs mt-2">Supports MP4 · Max 500MB per file</p>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={e => setVideoFile(e.target.files[0])}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer"
+                    />
+                    {videoFile && (
+                      <div className="mt-3 bg-white rounded-xl p-3 border border-green-200">
+                        <p className="text-sm text-green-700 font-medium">✅ Selected: {videoFile.name}</p>
+                        <p className="text-xs text-gray-400 mt-1">{(videoFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      </div>
+                    )}
+                    <p className="text-gray-400 text-xs mt-3">Supports MP4, MOV · Max 500MB per file</p>
                   </div>
                 )}
 
+                {/* Bottom buttons */}
                 <div className="flex gap-3 mt-5 md:mt-6">
                   <button onClick={() => setStep(2)}
                     className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">
                     ← Back
                   </button>
-                  <button onClick={handleSubmit}
-                    disabled={loading || messageType !== 'text' || !form.message || (wordCount > 5000 && !isPaid)}
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isSealDisabled()}
                     className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm">
                     {loading ? 'Sealing...' : 'Seal capsule 🔒'}
                   </button>
                 </div>
 
+                {/* Hint for free users on audio/video tabs */}
                 {messageType !== 'text' && !isPaid && (
                   <p className="text-center text-xs text-gray-400 mt-3">
                     Switch to Text tab to seal your capsule for now.
                   </p>
                 )}
+
+                {/* Hint for paid users — must select file */}
+                {messageType === 'audio' && isPaid && !audioFile && (
+                  <p className="text-center text-xs text-amber-600 mt-3">
+                    Please select an audio file to seal the capsule.
+                  </p>
+                )}
+                {messageType === 'video' && isPaid && !videoFile && (
+                  <p className="text-center text-xs text-amber-600 mt-3">
+                    Please select a video file to seal the capsule.
+                  </p>
+                )}
+
               </div>
             )}
 

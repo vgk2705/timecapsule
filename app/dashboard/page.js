@@ -136,8 +136,8 @@ export default function Dashboard() {
                 }
               </p>
             </div>
-            <a href="/upgrade" className="bg-white text-green-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-50 transition flex-shrink-0">
-              Manage Plan
+            <a href="/manage-plan" className="bg-white text-green-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-50 transition flex-shrink-0">
+            Manage Plan
             </a>
           </div>
         )}
