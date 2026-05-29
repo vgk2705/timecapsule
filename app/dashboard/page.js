@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [editMessage, setEditMessage] = useState('')
   const [deleting, setDeleting] = useState(null)
   const [subscription, setSubscription] = useState(null)
+  const [legacyPlan, setLegacyPlan] = useState(null)
 
   useEffect(() => {
     const getUser = async () => {
@@ -18,6 +19,7 @@ export default function Dashboard() {
       setUser(user)
       fetchCapsules(user.id)
       fetchSubscription(user.id)
+      fetchLegacyPlan(user.id)
     }
     getUser()
   }, [])
@@ -42,6 +44,16 @@ export default function Dashboard() {
     setSubscription(data || null)
   }
 
+  const fetchLegacyPlan = async (userId) => {
+    const { data } = await supabase
+      .from('legacy_plans')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .single()
+    setLegacyPlan(data || null)
+  }
+
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this capsule? This cannot be undone.')) return
     setDeleting(id)
@@ -53,8 +65,7 @@ export default function Dashboard() {
   const handleEditSave = async (id) => {
     const now = new Date().toISOString()
     await supabase.from('capsules').update({
-      message: editMessage,
-      updated_at: now
+      message: editMessage, updated_at: now
     }).eq('id', id)
     setCapsules(capsules.map(c => c.id === id ? { ...c, message: editMessage, updated_at: now } : c))
     setEditingId(null)
@@ -69,7 +80,7 @@ export default function Dashboard() {
 
   const planConfig = {
     loved: { label: 'Loved 💛', bg: 'bg-amber-100', color: 'text-amber-700' },
-    forever: { label: 'Forever 👑', bg: 'bg-purple-100', color: 'text-purple-700' },
+    forever: { label: 'Forever 👑', bg: 'bg-gray-100', color: 'text-gray-700' },
     free: { label: 'Free', bg: 'bg-gray-100', color: 'text-gray-600' },
   }
 
@@ -86,7 +97,6 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
 
-      {/* Header */}
       <header className="px-4 md:px-6 py-4 md:py-5 border-b border-amber-100 bg-amber-50">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div className="flex items-center gap-2">
@@ -95,10 +105,14 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <span className="hidden sm:block text-sm text-gray-500">Hi, {firstName}</span>
-            {/* Plan badge */}
             <span className={`text-xs px-2 py-1 rounded-full font-semibold ${planBadge.bg} ${planBadge.color}`}>
               {planBadge.label}
             </span>
+            {legacyPlan && (
+              <span className="text-xs px-2 py-1 rounded-full font-semibold bg-purple-100 text-purple-700">
+                Legacy 👻
+              </span>
+            )}
             <a href="/pricing" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Pricing</a>
             <a href="/support" className="text-sm text-amber-600 hover:text-amber-700 font-medium">Support</a>
             <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">Log out</button>
@@ -108,36 +122,64 @@ export default function Dashboard() {
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 md:px-6 py-6 md:py-10">
 
-        {/* Upgrade banner — only show for free users */}
-        {!isPaid && (
-          <div className="bg-gradient-to-r from-amber-400 to-amber-500 rounded-2xl p-4 md:p-5 mb-6 md:mb-8 flex items-center justify-between gap-4">
+        {/* Upgrade banner for free users */}
+        {!isPaid && !legacyPlan && (
+          <div className="bg-gradient-to-r from-amber-400 to-amber-500 rounded-2xl p-4 md:p-5 mb-4 flex items-center justify-between gap-4">
             <div>
-              <p className="text-white font-bold text-sm">🎵 Want to send audio & video capsules?</p>
+              <p className="text-white font-bold text-sm">🎵 Want audio & video capsules?</p>
               <p className="text-amber-100 text-xs mt-0.5">Upgrade to Loved or Forever — from ₹99/mo</p>
             </div>
             <a href="/upgrade" className="bg-white text-amber-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-50 transition flex-shrink-0">
-              Upgrade Now
+              Upgrade
             </a>
           </div>
         )}
 
-        {/* Paid user banner */}
+        {/* Active plan banner for paid users */}
         {isPaid && (
-          <div className="bg-gradient-to-r from-green-400 to-green-500 rounded-2xl p-4 md:p-5 mb-6 md:mb-8 flex items-center justify-between gap-4">
+          <div className="bg-gradient-to-r from-green-400 to-green-500 rounded-2xl p-4 md:p-5 mb-4 flex items-center justify-between gap-4">
             <div>
               <p className="text-white font-bold text-sm">
                 {currentPlan === 'forever' ? '👑 Forever Plan Active' : '💛 Loved Plan Active'}
               </p>
               <p className="text-green-100 text-xs mt-0.5">
-                Audio & video capsules unlocked ·{' '}
+                Audio & video unlocked ·{' '}
                 {subscription?.current_period_end
                   ? `Renews ${new Date(subscription.current_period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                  : 'Active subscription'
+                  : 'Active'
                 }
               </p>
             </div>
             <a href="/manage-plan" className="bg-white text-green-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-50 transition flex-shrink-0">
-            Manage Plan
+              Manage Plan
+            </a>
+          </div>
+        )}
+
+        {/* Legacy plan banner */}
+        {legacyPlan && (
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl p-4 md:p-5 mb-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-white font-bold text-sm">👻 Legacy Plan Active</p>
+              <p className="text-purple-100 text-xs mt-0.5">
+                When I am gone capsules · {legacyPlan.years_covered} years storage · 1GB
+              </p>
+            </div>
+            <a href="/manage-plan" className="bg-white text-purple-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-purple-50 transition flex-shrink-0">
+              Manage
+            </a>
+          </div>
+        )}
+
+        {/* Legacy plan upsell for paid users who don't have it */}
+        {isPaid && !legacyPlan && (
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-purple-800 font-bold text-sm">👻 Leave messages for after you're gone</p>
+              <p className="text-purple-600 text-xs mt-0.5">One-time Legacy plan — from ₹1,999</p>
+            </div>
+            <a href="/legacy-setup" className="bg-purple-600 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-purple-700 transition flex-shrink-0">
+              Set Up
             </a>
           </div>
         )}
@@ -149,17 +191,15 @@ export default function Dashboard() {
           </a>
         </div>
 
-        {/* Free plan limits warning */}
-        {!isPaid && capsules.length >= 2 && (
+        {/* Free plan limit warning */}
+        {!isPaid && capsules.filter(c => !c.is_legacy).length >= 2 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4">
             <p className="text-amber-700 text-sm">
-              ⚠️ You have <strong>{capsules.length}/3</strong> free capsules used.
-              {capsules.length >= 3 ? ' Upgrade to create more.' : ''}
+              ⚠️ <strong>{capsules.filter(c => !c.is_legacy).length}/3</strong> free capsules used.
+              {capsules.filter(c => !c.is_legacy).length >= 3 ? ' Upgrade to create more.' : ''}
             </p>
-            {capsules.length >= 3 && (
-              <a href="/upgrade" className="text-amber-600 text-sm font-bold hover:underline flex-shrink-0">
-                Upgrade →
-              </a>
+            {capsules.filter(c => !c.is_legacy).length >= 3 && (
+              <a href="/upgrade" className="text-amber-600 text-sm font-bold hover:underline flex-shrink-0">Upgrade →</a>
             )}
           </div>
         )}
@@ -175,27 +215,24 @@ export default function Dashboard() {
         ) : (
           <div className="grid gap-4">
             {capsules.map(capsule => (
-              <div key={capsule.id} className="bg-white rounded-2xl p-4 md:p-6 shadow-sm">
+              <div key={capsule.id} className={`bg-white rounded-2xl p-4 md:p-6 shadow-sm ${capsule.is_legacy ? 'border-l-4 border-purple-400' : ''}`}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-amber-600 font-medium mb-2">To: {capsule.recipient_name}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-sm text-amber-600 font-medium">To: {capsule.recipient_name}</p>
+                      {capsule.is_legacy && (
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">👻 Legacy</span>
+                      )}
+                    </div>
                     {editingId === capsule.id ? (
                       <div className="space-y-3">
-                        <textarea
-                          value={editMessage}
-                          onChange={e => setEditMessage(e.target.value)}
-                          rows={4}
-                          className="w-full border border-amber-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                        />
+                        <textarea value={editMessage} onChange={e => setEditMessage(e.target.value)} rows={4}
+                          className="w-full border border-amber-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
                         <div className="flex gap-2">
                           <button onClick={() => handleEditSave(capsule.id)}
-                            className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition">
-                            Save
-                          </button>
+                            className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition">Save</button>
                           <button onClick={() => setEditingId(null)}
-                            className="border border-gray-200 text-gray-500 px-4 py-2 rounded-xl text-sm transition hover:border-gray-300">
-                            Cancel
-                          </button>
+                            className="border border-gray-200 text-gray-500 px-4 py-2 rounded-xl text-sm transition hover:border-gray-300">Cancel</button>
                         </div>
                       </div>
                     ) : (
@@ -206,14 +243,13 @@ export default function Dashboard() {
                   <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-0 flex-shrink-0">
                     <div className="sm:text-right">
                       <span className={`inline-block text-xs px-3 py-1 rounded-full mb-1 ${
-                        capsule.status === 'delivered'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-amber-100 text-amber-700'
+                        capsule.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                       }`}>
                         {capsule.status === 'delivered' ? '✅ Delivered' : '🔒 Locked'}
                       </span>
                       <p className="text-xs text-gray-400 mb-1">
-                        {capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} {capsule.unlock_date}
+                        {capsule.is_legacy ? '👻 Delivered after passing' :
+                          `${capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} ${capsule.unlock_date}`}
                       </p>
                       <p className="text-xs text-gray-300 mb-2 sm:mb-3">
                         {capsule.updated_at
@@ -222,17 +258,13 @@ export default function Dashboard() {
                         }
                       </p>
                     </div>
-
                     {capsule.status === 'locked' && editingId !== capsule.id && (
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => { setEditingId(capsule.id); setEditMessage(capsule.message) }}
+                        <button onClick={() => { setEditingId(capsule.id); setEditMessage(capsule.message) }}
                           className="text-xs text-amber-600 hover:text-amber-700 border border-amber-200 px-3 py-1 rounded-lg transition">
                           ✏️ Edit
                         </button>
-                        <button
-                          onClick={() => handleDelete(capsule.id)}
-                          disabled={deleting === capsule.id}
+                        <button onClick={() => handleDelete(capsule.id)} disabled={deleting === capsule.id}
                           className="text-xs text-red-400 hover:text-red-600 border border-red-100 px-3 py-1 rounded-lg transition">
                           {deleting === capsule.id ? '...' : '🗑️ Delete'}
                         </button>

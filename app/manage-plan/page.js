@@ -6,64 +6,34 @@ import { supabase } from '../supabase'
 export default function ManagePlan() {
   const router = useRouter()
   const [subscription, setSubscription] = useState(null)
+  const [legacyPlan, setLegacyPlan] = useState(null)
+  const [legacyContact, setLegacyContact] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const getSubscription = async () => {
+    const getData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
-      const { data } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single()
+      const [subRes, legacyRes, contactRes] = await Promise.all([
+        supabase.from('subscriptions').select('*').eq('user_id', user.id).eq('status', 'active').single(),
+        supabase.from('legacy_plans').select('*').eq('user_id', user.id).eq('status', 'active').single(),
+        supabase.from('legacy_contacts').select('*').eq('user_id', user.id).single(),
+      ])
 
-      setSubscription(data)
+      setSubscription(subRes.data || null)
+      setLegacyPlan(legacyRes.data || null)
+      setLegacyContact(contactRes.data || null)
       setLoading(false)
     }
-    getSubscription()
+    getData()
   }, [])
-
-  const planConfig = {
-    loved: {
-      name: 'Loved',
-      emoji: '💛',
-      color: 'amber',
-      features: [
-        'Unlimited text capsules',
-        'Unlimited words',
-        '🎵 Audio messages',
-        '🎥 Video messages',
-        '2GB media storage',
-        'Priority support',
-        '6 month grace period',
-      ]
-    },
-    forever: {
-      name: 'Forever',
-      emoji: '👑',
-      color: 'purple',
-      features: [
-        'Everything in Loved',
-        '5GB media storage',
-        '10 year storage guaranteed',
-        'When I am gone feature',
-        'Multiple recipients',
-        'Legacy contact',
-        'Dedicated support',
-      ]
-    }
-  }
 
   if (loading) return (
     <div className="min-h-screen bg-amber-50 flex items-center justify-center">
       <p className="text-gray-400">Loading your plan...</p>
     </div>
   )
-
-  const plan = subscription ? planConfig[subscription.plan] : null
 
   return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
@@ -73,40 +43,29 @@ export default function ManagePlan() {
             <span className="text-2xl">⏳</span>
             <span className="text-lg font-semibold text-amber-900">TimeCapsule</span>
           </div>
-          <a href="/dashboard" className="text-sm text-amber-600 hover:underline">← Back to dashboard</a>
+          <a href="/dashboard" className="text-sm text-amber-600 hover:underline">← Dashboard</a>
         </div>
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-10">
-        <h1 className="text-2xl font-bold text-gray-900 mb-8">Your Plan</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-8">Your Plans</h1>
 
-        {!subscription || !plan ? (
-          <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
-            <div className="text-5xl mb-4">🆓</div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">You're on the Free plan</h2>
-            <p className="text-gray-500 mb-6">Upgrade to unlock audio, video and unlimited capsules.</p>
-            <a href="/upgrade" className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition">
-              Upgrade Now
-            </a>
-          </div>
-        ) : (
-          <div className="space-y-6">
+        <div className="space-y-6">
 
-            {/* Current plan card */}
+          {/* Subscription plan */}
+          {subscription ? (
             <div className={`bg-white rounded-2xl p-6 shadow-sm border-2 ${
-              subscription.plan === 'forever' ? 'border-purple-400' : 'border-amber-400'
+              subscription.plan === 'forever' ? 'border-gray-300' : 'border-amber-400'
             }`}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <span className="text-3xl">{plan.emoji}</span>
+                  <span className="text-3xl">{subscription.plan === 'forever' ? '👑' : '💛'}</span>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">{plan.name} Plan</h2>
+                    <h2 className="text-xl font-bold text-gray-800 capitalize">{subscription.plan} Plan</h2>
                     <p className="text-sm text-gray-500 capitalize">{subscription.billing_period} billing</p>
                   </div>
                 </div>
-                <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
-                  ✅ Active
-                </span>
+                <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">✅ Active</span>
               </div>
 
               {subscription.current_period_end && (
@@ -117,50 +76,101 @@ export default function ManagePlan() {
                 </div>
               )}
 
-              <ul className="space-y-2 text-sm text-gray-600">
-                {plan.features.map((f, i) => (
-                  <li key={i}>✅ {f}</li>
-                ))}
+              <ul className="space-y-2 text-sm text-gray-600 mb-4">
+                <li>✅ Unlimited text capsules + unlimited words</li>
+                <li>✅ Audio + video messages</li>
+                <li>✅ {subscription.plan === 'forever' ? '5GB' : '2GB'} media storage</li>
+                {subscription.plan === 'forever' && <li>✅ Multiple recipients per capsule</li>}
               </ul>
-            </div>
 
-            {/* Payment provider info */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="font-semibold text-gray-800 mb-3">Payment Info</h3>
-              <p className="text-sm text-gray-500">
-                Managed via <strong>{subscription.payment_provider === 'razorpay' ? 'Razorpay' : 'Stripe'}</strong>
-              </p>
-              {subscription.razorpay_subscription_id && (
-                <p className="text-xs text-gray-400 mt-1">
-                  Subscription ID: {subscription.razorpay_subscription_id}
-                </p>
-              )}
-            </div>
+              <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-500 mb-4">
+                Via <strong>{subscription.payment_provider === 'razorpay' ? 'Razorpay' : 'Stripe'}</strong>
+                {subscription.razorpay_subscription_id && (
+                  <span className="text-xs text-gray-400 ml-2">· {subscription.razorpay_subscription_id}</span>
+                )}
+              </div>
 
-            {/* Cancel info */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="font-semibold text-gray-800 mb-2">Cancel Subscription</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                To cancel your subscription or request a refund, please contact our support team. Your text capsules will always be kept safe.
-              </p>
               <a href="/support" className="inline-block border border-red-200 text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl text-sm font-medium transition">
                 Contact Support to Cancel
               </a>
             </div>
+          ) : (
+            <div className="bg-white rounded-2xl p-6 shadow-sm text-center border border-gray-100">
+              <div className="text-4xl mb-3">🆓</div>
+              <h2 className="text-lg font-bold text-gray-800 mb-2">Free Plan</h2>
+              <p className="text-gray-500 text-sm mb-4">3 text capsules · 5,000 words</p>
+              <a href="/upgrade" className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-xl font-semibold text-sm transition">
+                Upgrade Now
+              </a>
+            </div>
+          )}
 
-            {/* Upgrade option */}
-            {subscription.plan === 'loved' && (
-              <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl p-6 text-white">
-                <h3 className="font-bold mb-1">👑 Upgrade to Forever</h3>
-                <p className="text-purple-100 text-sm mb-4">Get 5GB storage, When I am gone feature and more.</p>
-                <a href="/upgrade" className="inline-block bg-white text-purple-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-purple-50 transition">
-                  Upgrade to Forever
-                </a>
+          {/* Legacy plan */}
+          {legacyPlan ? (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border-2 border-purple-400">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">👻</span>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800">Legacy Plan</h2>
+                    <p className="text-sm text-gray-500">One-time · {legacyPlan.years_covered} years storage</p>
+                  </div>
+                </div>
+                <span className="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">✅ Active</span>
               </div>
-            )}
 
-          </div>
-        )}
+              <ul className="space-y-2 text-sm text-gray-600 mb-4">
+                <li>✅ 3 legacy capsules</li>
+                <li>✅ 1GB total storage</li>
+                <li>✅ Audio + video included</li>
+                <li>✅ No monthly charges</li>
+                <li>✅ Team personal verification</li>
+                <li>✅ 6-month check-in reminders</li>
+              </ul>
+
+              <div className="bg-purple-50 rounded-xl p-3 text-sm text-purple-700 mb-4">
+                <p>Age at purchase: <strong>{legacyPlan.user_age} years</strong></p>
+                <p>Storage until: <strong>~{new Date().getFullYear() + legacyPlan.years_covered}</strong></p>
+                <p>Paid: <strong>₹{legacyPlan.amount_paid?.toLocaleString('en-IN')}</strong></p>
+              </div>
+
+              {legacyContact && (
+                <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-600 mb-4">
+                  <p className="font-semibold mb-1">Legacy Contact:</p>
+                  <p>{legacyContact.contact_name} · {legacyContact.contact_email}</p>
+                  <p>{legacyContact.contact_mobile}</p>
+                  <a href="/legacy-setup" className="text-purple-600 text-xs hover:underline">Update contact →</a>
+                </div>
+              )}
+
+              <a href="/create?legacy=true"
+                className="inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition">
+                Create Legacy Capsule →
+              </a>
+            </div>
+          ) : (
+            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 text-center">
+              <div className="text-4xl mb-3">👻</div>
+              <h2 className="text-lg font-bold text-gray-800 mb-2">No Legacy Plan Yet</h2>
+              <p className="text-gray-500 text-sm mb-4">Leave messages to be delivered after you're gone. One-time payment based on your age.</p>
+              <a href="/legacy-setup" className="inline-block bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-xl font-semibold text-sm transition">
+                Set Up Legacy Plan
+              </a>
+            </div>
+          )}
+
+          {/* Upgrade subscription if needed */}
+          {subscription?.plan === 'loved' && (
+            <div className="bg-gradient-to-r from-gray-700 to-gray-900 rounded-2xl p-6 text-white">
+              <h3 className="font-bold mb-1">👑 Upgrade to Forever</h3>
+              <p className="text-gray-300 text-sm mb-4">Get 5GB storage, multiple recipients and more.</p>
+              <a href="/upgrade" className="inline-block bg-white text-gray-900 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-100 transition">
+                Upgrade to Forever
+              </a>
+            </div>
+          )}
+
+        </div>
       </main>
 
       <footer className="text-center py-6 text-gray-400 text-sm px-4">

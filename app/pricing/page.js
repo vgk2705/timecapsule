@@ -60,7 +60,6 @@ export default function PricingPage() {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) setUser(data.user)
     })
-
     fetch('https://ipapi.co/json/')
       .then(r => r.json())
       .then(data => {
@@ -109,9 +108,7 @@ export default function PricingPage() {
 
   const priceNote = !locationLoaded ? null : isIndia
     ? 'Indian pricing via Razorpay · UPI, cards, GPay accepted'
-    : currency.code !== 'EUR'
-    ? `Approx. in ${currency.code}. Charged in EUR.`
-    : null
+    : currency.code !== 'EUR' ? `Approx. in ${currency.code}. Charged in EUR.` : null
 
   const firstName = user?.user_metadata?.name?.split(' ')[0] || user?.email?.split('@')[0] || ''
   const upgradeLink = user ? '/upgrade' : '/signup'
@@ -119,7 +116,6 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
 
-      {/* Navbar */}
       <header className="px-4 md:px-6 py-4 border-b border-amber-100 bg-amber-50">
         <div className="flex items-center justify-between max-w-5xl mx-auto">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
@@ -148,7 +144,6 @@ export default function PricingPage() {
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 md:px-6 py-8 md:py-16">
 
-        {/* Back + Heading */}
         <div className="mb-8 md:mb-12">
           <button onClick={() => router.back()}
             className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700 font-semibold text-base mb-6 md:mb-8">
@@ -167,7 +162,7 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* Billing period toggle */}
+        {/* Billing toggle */}
         <div className="flex justify-center mb-8 md:mb-12">
           <div className="bg-white rounded-2xl p-1 md:p-1.5 flex gap-1 shadow-sm overflow-x-auto max-w-full">
             {Object.entries(PERIOD_LABELS).map(([key, label]) => (
@@ -188,107 +183,132 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* Plans grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start">
+        {/* Plans grid — 4 cols on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 items-start">
 
           {/* Free */}
-          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="text-3xl mb-3">🆓</div>
             <h2 className="text-xl font-bold text-gray-800 mb-1">Free</h2>
-            <p className="text-gray-400 text-sm mb-5">Try it out, no card needed</p>
+            <p className="text-gray-400 text-sm mb-5">Try it out</p>
             <div className="mb-5">
-              <span className="text-3xl md:text-4xl font-bold text-gray-900">{isIndia ? '₹' : currency.symbol}0</span>
+              <span className="text-3xl font-bold text-gray-900">{isIndia ? '₹' : currency.symbol}0</span>
               <span className="text-gray-400 text-sm ml-1">forever</span>
             </div>
             <a href={user ? '/dashboard' : '/signup'}
-              className="block w-full text-center border-2 border-amber-500 text-amber-600 hover:bg-amber-50 py-3 rounded-xl font-medium transition mb-6 text-sm md:text-base">
-              {user ? 'Go to Dashboard' : 'Get started free'}
+              className="block w-full text-center border-2 border-amber-500 text-amber-600 hover:bg-amber-50 py-2.5 rounded-xl font-medium transition mb-5 text-sm">
+              {user ? 'Dashboard' : 'Get started free'}
             </a>
-            <ul className="space-y-2 md:space-y-3 text-sm text-gray-600">
+            <ul className="space-y-2 text-xs text-gray-600">
               <li>✅ 3 text capsules</li>
               <li>✅ 5,000 words total</li>
               <li>✅ Text stored forever</li>
               <li>✅ Email delivery</li>
-              <li>✅ All milestones</li>
-              <li className="text-gray-300">❌ Audio messages</li>
-              <li className="text-gray-300">❌ Video messages</li>
-              <li className="text-gray-300">❌ Media storage</li>
-              <li className="text-gray-300">❌ When I am gone</li>
+              <li className="text-gray-300">❌ Audio/Video</li>
+              <li className="text-gray-300">❌ Legacy plan</li>
             </ul>
           </div>
 
           {/* Loved */}
-          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border-2 border-amber-500 relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border-2 border-amber-500 relative">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
               MOST POPULAR
             </div>
             <div className="text-3xl mb-3">💛</div>
             <h2 className="text-xl font-bold text-gray-800 mb-1">Loved</h2>
-            <p className="text-gray-400 text-sm mb-5">For families preserving every memory</p>
+            <p className="text-gray-400 text-sm mb-5">For families</p>
             <div className="mb-5">
-              <span className="text-3xl md:text-4xl font-bold text-gray-900">
+              <span className="text-3xl font-bold text-gray-900">
                 {formatPrice(PLANS.loved.pricing[period].price)}
               </span>
               <span className="text-gray-400 text-sm ml-1">/ {PLANS.loved.pricing[period].label}</span>
               {PLANS.loved.pricing[period].saving && (
-                <div className="mt-2 inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full ml-2">
+                <div className="mt-1 inline-block bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full ml-1">
                   {PLANS.loved.pricing[period].saving}
                 </div>
               )}
             </div>
             <a href={upgradeLink}
-              className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-medium transition mb-6 text-sm md:text-base">
-              {user ? 'Upgrade to Loved' : 'Start Loved plan'}
+              className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-medium transition mb-5 text-sm">
+              {user ? 'Upgrade to Loved' : 'Start Loved'}
             </a>
-            <ul className="space-y-2 md:space-y-3 text-sm text-gray-600">
+            <ul className="space-y-2 text-xs text-gray-600">
               <li>✅ Unlimited text capsules</li>
               <li>✅ Unlimited words</li>
               <li>✅ 🎵 Audio messages</li>
               <li>✅ 🎥 Video messages</li>
               <li>✅ 2GB media storage</li>
-              <li>✅ All milestones + custom dates</li>
               <li>✅ Priority support</li>
-              <li>✅ 6 month grace period</li>
-              <li className="text-gray-300">❌ When I am gone</li>
-              <li className="text-gray-300">❌ Multiple recipients</li>
-              <li className="text-gray-300">❌ Legacy contact</li>
+              <li className="text-gray-300">❌ Legacy plan</li>
             </ul>
           </div>
 
           {/* Forever */}
-          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="text-3xl mb-3">👑</div>
             <h2 className="text-xl font-bold text-gray-800 mb-1">Forever</h2>
-            <p className="text-gray-400 text-sm mb-5">For legacies across generations</p>
+            <p className="text-gray-400 text-sm mb-5">For generations</p>
             <div className="mb-5">
-              <span className="text-3xl md:text-4xl font-bold text-gray-900">
+              <span className="text-3xl font-bold text-gray-900">
                 {formatPrice(PLANS.forever.pricing[period].price)}
               </span>
               <span className="text-gray-400 text-sm ml-1">/ {PLANS.forever.pricing[period].label}</span>
               {PLANS.forever.pricing[period].saving && (
-                <div className="mt-2 inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full ml-2">
+                <div className="mt-1 inline-block bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full ml-1">
                   {PLANS.forever.pricing[period].saving}
                 </div>
               )}
             </div>
             <a href={upgradeLink}
-              className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-xl font-medium transition mb-6 text-sm md:text-base">
-              {user ? 'Upgrade to Forever' : 'Start Forever plan'}
+              className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white py-2.5 rounded-xl font-medium transition mb-5 text-sm">
+              {user ? 'Upgrade to Forever' : 'Start Forever'}
             </a>
-            <ul className="space-y-2 md:space-y-3 text-sm text-gray-600">
+            <ul className="space-y-2 text-xs text-gray-600">
               <li>✅ Everything in Loved</li>
               <li>✅ 5GB media storage</li>
-              <li>✅ 10 year storage guaranteed</li>
-              <li>✅ 👻 When I am gone feature</li>
+              <li>✅ 10 year storage</li>
               <li>✅ Multiple recipients</li>
-              <li>✅ Legacy contact person</li>
+              <li>✅ Legacy contact</li>
               <li>✅ Dedicated support</li>
+              <li className="text-gray-300">❌ When I am gone</li>
+            </ul>
+          </div>
+
+          {/* Legacy */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border-2 border-purple-400 relative">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
+              ONE-TIME
+            </div>
+            <div className="text-3xl mb-3">👻</div>
+            <h2 className="text-xl font-bold text-gray-800 mb-1">Legacy</h2>
+            <p className="text-gray-400 text-sm mb-5">When I am gone</p>
+            <div className="mb-5">
+              <span className="text-3xl font-bold text-purple-700">
+                {isIndia ? '₹1,999+' : '€19+'}
+              </span>
+              <span className="text-gray-400 text-sm ml-1">one-time</span>
+              <div className="mt-1 inline-block bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full ml-1">
+                Based on your age
+              </div>
+            </div>
+            <a href={user ? '/legacy-setup' : '/signup'}
+              className="block w-full text-center bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl font-medium transition mb-5 text-sm">
+              {user ? 'Set Up Legacy' : 'Get Legacy Plan'}
+            </a>
+            <ul className="space-y-2 text-xs text-gray-600">
+              <li>✅ 3 legacy capsules</li>
+              <li>✅ 1GB storage</li>
+              <li>✅ Audio + Video included</li>
+              <li>✅ No monthly charges</li>
+              <li>✅ 👻 When I am gone</li>
+              <li>✅ Team verification call</li>
+              <li>✅ 6-month check-ins</li>
             </ul>
           </div>
 
         </div>
 
-        {/* India payment note */}
+        {/* India note */}
         {isIndia && (
           <div className="mt-6 bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
             <p className="text-green-700 text-sm font-medium">
@@ -297,27 +317,42 @@ export default function PricingPage() {
           </div>
         )}
 
+        {/* Legacy special note */}
+        <div className="mt-6 bg-purple-50 border border-purple-200 rounded-2xl p-5">
+          <div className="flex items-start gap-4">
+            <span className="text-3xl">👻</span>
+            <div>
+              <h3 className="font-bold text-gray-800 mb-1">About the Legacy Plan</h3>
+              <p className="text-gray-500 text-sm">
+                The Legacy plan is a one-time payment based on your age. Price is lower as you get older since storage duration is shorter.
+                Your messages are stored safely and only released after our team personally verifies with your legacy contact.
+                No monthly charges — ever.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Refund policy */}
         <div className="mt-6 md:mt-8 bg-white rounded-2xl p-6 md:p-8 shadow-sm text-center">
           <div className="text-3xl mb-3">🛡️</div>
           <h3 className="text-lg font-bold text-gray-800 mb-2">Fair Refund Policy</h3>
           <p className="text-gray-500 text-sm max-w-2xl mx-auto">
-            Not happy? Request a refund anytime. You'll only be charged for the months you used.
-            After a refund, your text capsules are kept forever. Media capsules are stored for
-            6 more months then removed. No questions asked.
+            Not happy? Request a refund anytime. Subscription plans: charged only for months used.
+            Legacy plan: refundable within 30 days of purchase.
+            Text capsules kept forever. Media stored 6 more months then removed.
           </p>
         </div>
 
         {/* FAQ */}
         <div className="mt-6 md:mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {[
-            { q: 'What happens if I cancel?', a: 'Your text capsules are safe forever. Audio and video are kept for 6 months after cancellation, then removed.' },
-            { q: 'Can I upgrade or downgrade anytime?', a: 'Yes! You can switch plans anytime. Billing adjusts from your next payment date.' },
-            { q: 'What payment methods are accepted?', a: isIndia ? 'UPI, Google Pay, PhonePe, Paytm, credit/debit cards, net banking and EMI.' : 'We accept all major cards, iDEAL, Google Pay, Apple Pay and more — depending on your country.' },
-            { q: 'Is my data secure?', a: 'Yes. All capsules are encrypted and stored securely. Only the recipient receives the message on the unlock date.' },
+            { q: 'What happens if I cancel?', a: 'Text capsules are safe forever. Audio and video kept 6 months after cancellation.' },
+            { q: 'How does the Legacy plan work?', a: 'You pay once based on your age. We store your messages and release them only after our team personally verifies with your legacy contact.' },
+            { q: 'What payment methods are accepted?', a: isIndia ? 'UPI, Google Pay, PhonePe, Paytm, credit/debit cards, net banking and EMI.' : 'All major cards, iDEAL, Google Pay, Apple Pay and more.' },
+            { q: 'Is my data secure?', a: 'Yes. All capsules are encrypted. Only recipients receive messages on the unlock date or after legacy verification.' },
           ].map((faq, i) => (
-            <div key={i} className="bg-white rounded-2xl p-5 md:p-6 shadow-sm">
-              <h4 className="font-semibold text-gray-800 mb-2 text-sm md:text-base">{faq.q}</h4>
+            <div key={i} className="bg-white rounded-2xl p-5 shadow-sm">
+              <h4 className="font-semibold text-gray-800 mb-2 text-sm">{faq.q}</h4>
               <p className="text-gray-500 text-sm">{faq.a}</p>
             </div>
           ))}
