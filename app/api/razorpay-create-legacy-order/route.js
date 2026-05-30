@@ -7,13 +7,13 @@ const razorpay = new Razorpay({
 
 // Price by age group in paise (INR × 100)
 const LEGACY_PRICING = {
-  '20s': { amount: 499900, years: 75, label: '₹4,999' },
-  '30s': { amount: 449900, years: 65, label: '₹4,499' },
-  '40s': { amount: 399900, years: 55, label: '₹3,999' },
-  '50s': { amount: 349900, years: 45, label: '₹3,499' },
-  '60s': { amount: 299900, years: 35, label: '₹2,999' },
-  '70s': { amount: 249900, years: 25, label: '₹2,499' },
-  '80+': { amount: 199900, years: 15, label: '₹1,999' },
+  '20s': { amountINR: 499900, amountEUR: 14900, years: 75, labelINR: '₹4,999', labelEUR: '€149' },
+  '30s': { amountINR: 449900, amountEUR: 13400, years: 65, labelINR: '₹4,499', labelEUR: '€134' },
+  '40s': { amountINR: 399900, amountEUR: 11900, years: 55, labelINR: '₹3,999', labelEUR: '€119' },
+  '50s': { amountINR: 349900, amountEUR: 10400, years: 45, labelINR: '₹3,499', labelEUR: '€104' },
+  '60s': { amountINR: 299900, amountEUR: 8900, years: 35, labelINR: '₹2,999', labelEUR: '€89' },
+  '70s': { amountINR: 249900, amountEUR: 7400, years: 25, labelINR: '₹2,499', labelEUR: '€74' },
+  '80+': { amountINR: 199900, amountEUR: 5900, years: 15, labelINR: '₹1,999', labelEUR: '€59' },
 }
 
 function getAgeGroup(dob) {

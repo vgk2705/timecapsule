@@ -171,18 +171,18 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Legacy plan upsell for paid users who don't have it */}
-        {isPaid && !legacyPlan && (
-          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-purple-800 font-bold text-sm">👻 Leave messages for after you're gone</p>
-              <p className="text-purple-600 text-xs mt-0.5">One-time Legacy plan — from ₹1,999</p>
-            </div>
-            <a href="/legacy-setup" className="bg-purple-600 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-purple-700 transition flex-shrink-0">
-              Set Up
-            </a>
-          </div>
-        )}
+        {/* Legacy plan upsell for all users who don't have it */}
+        {!legacyPlan && (
+         <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4">
+         <div>
+          <p className="text-purple-800 font-bold text-sm">👻 Leave messages for after you're gone</p>
+         <p className="text-purple-600 text-xs mt-0.5">One-time Legacy plan — from ₹1,999 based on your age</p>
+        </div>
+         <a href="/legacy-setup" className="bg-purple-600 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-purple-700 transition flex-shrink-0">
+         Set Up
+         </a>
+        </div>
+          )}
 
         <div className="flex items-center justify-between mb-6 md:mb-8">
           <h1 className="text-xl md:text-2xl font-bold text-gray-800">Your Capsules</h1>
