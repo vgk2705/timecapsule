@@ -6,6 +6,7 @@
     { "path": "/api/send-capsules", "schedule": "0 12 * * *" },
     { "path": "/api/keep-alive", "schedule": "0 17 * * *" },
     { "path": "/api/send-capsules", "schedule": "0 18 * * *" },
-    { "path": "/api/check-legacy-checkins", "schedule": "0 7 * * *" }
+    { "path": "/api/check-legacy-checkins", "schedule": "0 7 * * *" },
+    { "path": "/api/check-expired-subscriptions", "schedule": "0 9 * * *" }
   ]
 }

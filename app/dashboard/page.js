@@ -11,6 +11,8 @@ export default function Dashboard() {
   const [deleting, setDeleting] = useState(null)
   const [subscription, setSubscription] = useState(null)
   const [legacyPlan, setLegacyPlan] = useState(null)
+  const [isIndia, setIsIndia] = useState(false)
+  const [cancelledSub, setCancelledSub] = useState(null)
 
   useEffect(() => {
     const getUser = async () => {
@@ -20,8 +22,15 @@ export default function Dashboard() {
       fetchCapsules(user.id)
       fetchSubscription(user.id)
       fetchLegacyPlan(user.id)
+      fetchCancelledSub(user.id)
     }
     getUser()
+
+    // Detect India
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then(data => { if (data.country_code === 'IN') setIsIndia(true) })
+      .catch(() => {})
   }, [])
 
   const fetchCapsules = async (userId) => {
@@ -42,6 +51,27 @@ export default function Dashboard() {
       .eq('status', 'active')
       .single()
     setSubscription(data || null)
+  }
+
+  const fetchCancelledSub = async (userId) => {
+    // Check if user has a recently cancelled subscription still in grace period
+    const { data } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'cancelled')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (data) {
+      // Check if within 180 days grace period
+      const cancelledDate = new Date(data.updated_at)
+      const daysSinceCancelled = Math.floor((new Date() - cancelledDate) / (1000 * 60 * 60 * 24))
+      if (daysSinceCancelled < 180) {
+        setCancelledSub({ ...data, daysSinceCancelled, daysLeft: 180 - daysSinceCancelled })
+      }
+    }
   }
 
   const fetchLegacyPlan = async (userId) => {
@@ -88,6 +118,9 @@ export default function Dashboard() {
   const planBadge = planConfig[currentPlan] || planConfig.free
   const isPaid = currentPlan !== 'free'
 
+  // Media capsules (audio/video) — for grace period warning
+  const mediaCapsules = capsules.filter(c => c.media_type === 'audio' || c.media_type === 'video')
+
   if (loading) return (
     <div className="min-h-screen bg-amber-50 flex items-center justify-center">
       <p className="text-gray-400">Loading your capsules...</p>
@@ -97,6 +130,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
 
+      {/* Header */}
       <header className="px-4 md:px-6 py-4 md:py-5 border-b border-amber-100 bg-amber-50">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div className="flex items-center gap-2">
@@ -122,12 +156,56 @@ export default function Dashboard() {
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 md:px-6 py-6 md:py-10">
 
+        {/* Grace period warning — cancelled subscription */}
+        {cancelledSub && mediaCapsules.length > 0 && (
+          <div className={`rounded-2xl p-4 md:p-5 mb-4 border-2 ${
+            cancelledSub.daysLeft <= 30
+              ? 'bg-red-50 border-red-300'
+              : 'bg-orange-50 border-orange-200'
+          }`}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className={`font-bold text-sm ${cancelledSub.daysLeft <= 30 ? 'text-red-700' : 'text-orange-700'}`}>
+                  {cancelledSub.daysLeft <= 30 ? '🚨' : '⚠️'} Subscription cancelled — Grace period active
+                </p>
+                <p className={`text-xs mt-1 ${cancelledSub.daysLeft <= 30 ? 'text-red-600' : 'text-orange-600'}`}>
+                  Your <strong>{mediaCapsules.length} audio/video capsule{mediaCapsules.length > 1 ? 's' : ''}</strong> will be deleted in <strong>{cancelledSub.daysLeft} days</strong>.
+                  Text capsules are kept forever. ✅
+                </p>
+              </div>
+              <a href="/upgrade"
+                className={`px-3 py-2 rounded-xl text-sm font-bold transition flex-shrink-0 ${
+                  cancelledSub.daysLeft <= 30
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-orange-500 hover:bg-orange-600 text-white'
+                }`}>
+                Resubscribe
+              </a>
+            </div>
+            {/* Grace period progress bar */}
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <span>Cancelled {cancelledSub.daysSinceCancelled} days ago</span>
+                <span>{cancelledSub.daysLeft} days left</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all ${cancelledSub.daysLeft <= 30 ? 'bg-red-500' : 'bg-orange-400'}`}
+                  style={{ width: `${(cancelledSub.daysSinceCancelled / 180) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Upgrade banner for free users */}
-        {!isPaid && !legacyPlan && (
+        {!isPaid && !legacyPlan && !cancelledSub && (
           <div className="bg-gradient-to-r from-amber-400 to-amber-500 rounded-2xl p-4 md:p-5 mb-4 flex items-center justify-between gap-4">
             <div>
               <p className="text-white font-bold text-sm">🎵 Want audio & video capsules?</p>
-              <p className="text-amber-100 text-xs mt-0.5">Upgrade to Loved or Forever — from ₹99/mo</p>
+              <p className="text-amber-100 text-xs mt-0.5">
+                Upgrade to Loved or Forever — from {isIndia ? '₹99/mo' : '€2.99/mo'}
+              </p>
             </div>
             <a href="/upgrade" className="bg-white text-amber-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-amber-50 transition flex-shrink-0">
               Upgrade
@@ -171,18 +249,35 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Legacy plan upsell for all users who don't have it */}
+        {/* Legacy upsell for all users without legacy plan */}
         {!legacyPlan && (
-         <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4">
-         <div>
-          <p className="text-purple-800 font-bold text-sm">👻 Leave messages for after you're gone</p>
-         <p className="text-purple-600 text-xs mt-0.5">One-time Legacy plan — from ₹1,999 based on your age</p>
-        </div>
-         <a href="/legacy-setup" className="bg-purple-600 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-purple-700 transition flex-shrink-0">
-         Set Up
-         </a>
-        </div>
-          )}
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-purple-800 font-bold text-sm">👻 Leave messages for after you're gone</p>
+              <p className="text-purple-600 text-xs mt-0.5">
+                One-time Legacy plan — from {isIndia ? '₹1,999' : '€59'} based on your age
+              </p>
+            </div>
+            <a href="/legacy-setup" className="bg-purple-600 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-purple-700 transition flex-shrink-0">
+              Set Up
+            </a>
+          </div>
+        )}
+
+        {/* Per capsule upsell — for free users or cancelled users with media capsules */}
+        {(!isPaid || cancelledSub) && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-blue-800 font-bold text-sm">🎵 Send audio or video — pay per capsule</p>
+              <p className="text-blue-600 text-xs mt-0.5">
+                No subscription needed · Audio from {isIndia ? '₹99' : '€2.99'} · Video from {isIndia ? '₹299' : '€8.99'}
+              </p>
+            </div>
+            <a href="/upgrade#per-capsule" className="bg-blue-500 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-blue-600 transition flex-shrink-0">
+              Learn More
+            </a>
+          </div>
+        )}
 
         <div className="flex items-center justify-between mb-6 md:mb-8">
           <h1 className="text-xl md:text-2xl font-bold text-gray-800">Your Capsules</h1>
@@ -215,13 +310,29 @@ export default function Dashboard() {
         ) : (
           <div className="grid gap-4">
             {capsules.map(capsule => (
-              <div key={capsule.id} className={`bg-white rounded-2xl p-4 md:p-6 shadow-sm ${capsule.is_legacy ? 'border-l-4 border-purple-400' : ''}`}>
+              <div key={capsule.id} className={`bg-white rounded-2xl p-4 md:p-6 shadow-sm ${
+                capsule.is_legacy ? 'border-l-4 border-purple-400' : ''
+              } ${
+                cancelledSub && (capsule.media_type === 'audio' || capsule.media_type === 'video')
+                  ? 'border border-orange-200'
+                  : ''
+              }`}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <p className="text-sm text-amber-600 font-medium">To: {capsule.recipient_name}</p>
                       {capsule.is_legacy && (
                         <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">👻 Legacy</span>
+                      )}
+                      {(capsule.media_type === 'audio' || capsule.media_type === 'video') && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                          {capsule.media_type === 'audio' ? '🎵 Audio' : '🎥 Video'}
+                        </span>
+                      )}
+                      {cancelledSub && (capsule.media_type === 'audio' || capsule.media_type === 'video') && (
+                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
+                          ⚠️ Deletes in {cancelledSub.daysLeft}d
+                        </span>
                       )}
                     </div>
                     {editingId === capsule.id ? (
@@ -248,8 +359,10 @@ export default function Dashboard() {
                         {capsule.status === 'delivered' ? '✅ Delivered' : '🔒 Locked'}
                       </span>
                       <p className="text-xs text-gray-400 mb-1">
-                        {capsule.is_legacy ? '👻 Delivered after passing' :
-                          `${capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} ${capsule.unlock_date}`}
+                        {capsule.is_legacy
+                          ? '👻 Delivered after passing'
+                          : `${capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} ${capsule.unlock_date}`
+                        }
                       </p>
                       <p className="text-xs text-gray-300 mb-2 sm:mb-3">
                         {capsule.updated_at
