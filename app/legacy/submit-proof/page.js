@@ -12,13 +12,14 @@ export default function SubmitProof() {
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [uploadProgress, setUploadProgress] = useState('')
 
   const handleFindContact = async () => {
     setLoading(true)
     setError('')
     const { data, error } = await supabase
       .from('legacy_contacts')
-      .select('*, legacy_plans!user_id(*)')
+      .select('*')
       .eq('contact_email', email.trim().toLowerCase())
       .eq('status', 'active')
       .single()
@@ -37,31 +38,41 @@ export default function SubmitProof() {
     if (!proofType) { setError('Please select a proof type.'); return }
     if (!proofFile) { setError('Please upload a proof document.'); return }
 
+    // Check file size (10MB max)
+    if (proofFile.size > 10 * 1024 * 1024) {
+      setError('File too large. Maximum size is 10MB.')
+      return
+    }
+
     setLoading(true)
     setError('')
 
     try {
-      // Upload proof document to Supabase storage
-      const fileExt = proofFile.name.split('.').pop()
-      const fileName = `${contactInfo.user_id}_${Date.now()}.${fileExt}`
+      // Upload proof document to Cloudflare R2 via API
+      setUploadProgress('Uploading document...')
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', proofFile)
+      uploadFormData.append('userId', contactInfo.user_id)
+      uploadFormData.append('fileType', 'proof')
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('legacy-proofs')
-        .upload(fileName, proofFile)
+      const uploadRes = await fetch('/api/upload-media', {
+        method: 'POST',
+        body: uploadFormData,
+      })
 
-      if (uploadError) throw new Error('Failed to upload document')
+      const uploadData = await uploadRes.json()
+      if (uploadData.error) throw new Error(uploadData.error)
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('legacy-proofs')
-        .getPublicUrl(fileName)
+      const proofUrl = uploadData.url
+      setUploadProgress('Saving verification record...')
 
-      // Save verification record
+      // Save verification record to Supabase
       const { error: verifyError } = await supabase
         .from('legacy_verifications')
         .insert({
           user_id: contactInfo.user_id,
           legacy_contact_id: contactInfo.id,
-          proof_document_url: publicUrl,
+          proof_document_url: proofUrl,
           proof_document_name: proofFile.name,
           proof_document_size: proofFile.size,
           proof_type: proofType,
@@ -69,7 +80,9 @@ export default function SubmitProof() {
           status: 'pending',
         })
 
-      if (verifyError) throw new Error('Failed to save verification')
+      if (verifyError) throw new Error('Failed to save verification record')
+
+      setUploadProgress('Notifying team...')
 
       // Notify admin team
       await fetch('/api/notify-legacy-proof', {
@@ -85,8 +98,10 @@ export default function SubmitProof() {
         })
       })
 
+      setUploadProgress('')
       setSubmitted(true)
     } catch (err) {
+      setUploadProgress('')
       setError(err.message || 'Something went wrong. Please try again.')
     }
     setLoading(false)
@@ -97,14 +112,14 @@ export default function SubmitProof() {
       <div className="text-center max-w-md">
         <div className="text-6xl mb-6">💜</div>
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Proof submitted</h1>
-        <p className="text-gray-500 mb-4">
+        <p className="text-gray-500 mb-6">
           Our team has received your submission and will contact you within <strong>48 hours</strong> on your mobile number to verify.
         </p>
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 text-sm text-purple-700 text-left">
-          <p>✅ Proof document received</p>
-          <p>📞 Our team will call you at <strong>{contactInfo?.contact_mobile}</strong></p>
-          <p>⏳ Verification takes 24-48 hours</p>
-          <p>💌 Messages released after verification</p>
+        <div className="bg-white border border-purple-200 rounded-xl p-5 text-sm text-left space-y-2">
+          <p className="text-purple-700">✅ Proof document uploaded securely</p>
+          <p className="text-purple-700">📞 Our team will call you at <strong>{contactInfo?.contact_mobile}</strong></p>
+          <p className="text-purple-700">⏳ Verification takes 24-48 hours</p>
+          <p className="text-purple-700">💌 Messages released only after personal verification</p>
         </div>
       </div>
     </div>
@@ -112,7 +127,7 @@ export default function SubmitProof() {
 
   return (
     <div className="min-h-screen bg-purple-50 flex flex-col">
-      <header className="px-4 py-4 border-b border-purple-100">
+      <header className="px-4 py-4 border-b border-purple-100 bg-purple-50">
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
           <span className="text-2xl">⏳</span>
           <span className="text-lg font-semibold text-purple-900">TimeCapsule</span>
@@ -143,14 +158,25 @@ export default function SubmitProof() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Your email address <span className="text-red-500">*</span>
                 </label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleFindContact()}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                  placeholder="your@email.com" />
+                  placeholder="your@email.com"
+                />
               </div>
 
-              {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
 
-              <button onClick={handleFindContact} disabled={!email || loading}
+              <button
+                onClick={handleFindContact}
+                disabled={!email || loading}
                 className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white py-3 rounded-xl font-semibold transition">
                 {loading ? 'Searching...' : 'Continue →'}
               </button>
@@ -162,68 +188,117 @@ export default function SubmitProof() {
             <div>
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
                 <p className="text-sm text-purple-700 font-medium">✅ Legacy contact verified</p>
-                <p className="text-xs text-gray-500 mt-1">You are listed as the legacy contact for a TimeCapsule user.</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  You are listed as the legacy contact for a TimeCapsule user.
+                </p>
               </div>
 
               <h2 className="text-lg font-bold text-gray-800 mb-4">Submit proof of passing</h2>
 
-              <div className="mb-4">
+              {/* Proof type selection */}
+              <div className="mb-5">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Type of proof <span className="text-red-500">*</span>
                 </label>
                 <div className="space-y-2">
                   {[
-                    { id: 'death_certificate', label: 'Death Certificate' },
-                    { id: 'hospital_letter', label: 'Hospital/Doctor Letter' },
-                    { id: 'obituary', label: 'Obituary / News Article' },
-                    { id: 'other', label: 'Other official document' },
+                    { id: 'death_certificate', label: 'Death Certificate', desc: 'Official government-issued certificate' },
+                    { id: 'hospital_letter', label: 'Hospital / Doctor Letter', desc: 'Letter from hospital or treating doctor' },
+                    { id: 'obituary', label: 'Obituary / News Article', desc: 'Published obituary or news report' },
+                    { id: 'other', label: 'Other official document', desc: 'Any other official documentation' },
                   ].map(opt => (
-                    <label key={opt.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${
-                      proofType === opt.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-300'
-                    }`}>
-                      <input type="radio" name="proofType" value={opt.id}
+                    <label
+                      key={opt.id}
+                      className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${
+                        proofType === opt.id
+                          ? 'border-purple-500 bg-purple-50'
+                          : 'border-gray-200 hover:border-purple-300'
+                      }`}>
+                      <input
+                        type="radio"
+                        name="proofType"
+                        value={opt.id}
                         checked={proofType === opt.id}
                         onChange={e => setProofType(e.target.value)}
-                        className="accent-purple-600" />
-                      <span className="text-sm text-gray-700">{opt.label}</span>
+                        className="accent-purple-600 mt-0.5"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">{opt.label}</p>
+                        <p className="text-xs text-gray-400">{opt.desc}</p>
+                      </div>
                     </label>
                   ))}
                 </div>
               </div>
 
-              <div className="mb-4">
+              {/* File upload */}
+              <div className="mb-5">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Upload document <span className="text-red-500">*</span>
                 </label>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                   onChange={e => setProofFile(e.target.files[0])}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer" />
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer"
+                />
                 {proofFile && (
                   <div className="mt-2 bg-green-50 rounded-xl p-3 border border-green-200">
-                    <p className="text-sm text-green-700">✅ {proofFile.name}</p>
-                    <p className="text-xs text-gray-400">{(proofFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <p className="text-sm text-green-700 font-medium">✅ {proofFile.name}</p>
+                    <p className="text-xs text-gray-400 mt-1">{(proofFile.size / 1024 / 1024).toFixed(2)} MB</p>
                   </div>
                 )}
-                <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOC accepted · Max 10MB</p>
+                <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOC accepted · Max 10MB · Stored securely</p>
               </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Additional notes (optional)</label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+              {/* Additional notes */}
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Additional notes (optional)
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  rows={3}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                  placeholder="Any additional information for our team..." />
+                  placeholder="Any additional information for our team..."
+                />
               </div>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-700">
-                <p>⚠️ Our team will call you at <strong>{contactInfo.contact_mobile}</strong> within 48 hours to verify.</p>
-                <p className="mt-1">Messages will only be released after personal verification.</p>
+              {/* Call notice */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
+                <p className="text-xs text-amber-700 font-medium">
+                  📞 Our team will call <strong>{contactInfo.contact_mobile}</strong> within 48 hours
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  Messages will only be released after our team personally verifies with you.
+                </p>
               </div>
 
-              {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+              {/* Upload progress */}
+              {uploadProgress && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-4">
+                  <p className="text-sm text-purple-700">⏳ {uploadProgress}</p>
+                </div>
+              )}
 
-              <button onClick={handleSubmitProof} disabled={loading || !proofType || !proofFile}
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleSubmitProof}
+                disabled={loading || !proofType || !proofFile}
                 className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white py-3 rounded-xl font-semibold transition">
                 {loading ? 'Submitting...' : 'Submit Proof →'}
+              </button>
+
+              <button
+                onClick={() => { setStep(1); setError('') }}
+                className="w-full mt-3 text-gray-400 text-sm hover:text-gray-600 transition">
+                ← Use different email
               </button>
             </div>
           )}

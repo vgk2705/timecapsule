@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
+import { deleteFromR2 } from '../../lib/r2'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const supabase = createClient(
@@ -19,7 +20,6 @@ export async function GET(request) {
   let warnings7 = 0
   let deleted = 0
 
-  // Find all cancelled subscriptions
   const { data: cancelledSubs } = await supabase
     .from('subscriptions')
     .select('*')
@@ -32,9 +32,7 @@ export async function GET(request) {
   for (const sub of cancelledSubs) {
     const cancelledDate = new Date(sub.updated_at)
     const daysSinceCancelled = Math.floor((today - cancelledDate) / (1000 * 60 * 60 * 24))
-    const daysLeft = 180 - daysSinceCancelled
 
-    // Get user info
     let userEmail = null
     let userName = 'there'
     try {
@@ -45,10 +43,9 @@ export async function GET(request) {
 
     if (!userEmail) continue
 
-    // Get media capsules
     const { data: mediaCapsules } = await supabase
       .from('capsules')
-      .select('id, recipient_name, media_type')
+      .select('id, recipient_name, media_type, media_url, media_file_name')
       .eq('sender_id', sub.user_id)
       .in('media_type', ['audio', 'video'])
       .eq('status', 'locked')
@@ -126,11 +123,23 @@ export async function GET(request) {
       warnings7++
     }
 
-    // ── 180 DAYS — DELETE MEDIA ─────────────────
+    // ── 180 DAYS — DELETE MEDIA FROM R2 ────────
     if (daysSinceCancelled >= 180) {
       for (const capsule of mediaCapsules) {
-        // TODO: Delete actual file from Cloudflare R2 when storage is built
-        // For now: remove media info from capsule, keep text
+        // Delete from Cloudflare R2
+        if (capsule.media_url) {
+          try {
+            const key = capsule.media_url.replace(
+              process.env.CLOUDFLARE_R2_PUBLIC_URL + '/',
+              ''
+            )
+            await deleteFromR2(process.env.CLOUDFLARE_R2_BUCKET_MEDIA, key)
+          } catch (err) {
+            console.error('R2 delete error for capsule', capsule.id, err)
+          }
+        }
+
+        // Clear media fields from capsule record
         await supabase
           .from('capsules')
           .update({
@@ -143,8 +152,20 @@ export async function GET(request) {
               : '[Video message expired — subscription was cancelled]',
           })
           .eq('id', capsule.id)
+
         deleted++
       }
+
+      // Update storage_usage to 0 after deletion
+      await supabase
+        .from('storage_usage')
+        .update({
+          total_bytes: 0,
+          audio_bytes: 0,
+          video_bytes: 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', sub.user_id)
 
       // Send deletion confirmation email
       await resend.emails.send({
@@ -157,8 +178,8 @@ export async function GET(request) {
             <p style="font-size: 18px; color: #374151;">Hi <strong>${userName}</strong>,</p>
             <p style="color: #6b7280;">Your grace period has ended and <strong>${mediaCount} media capsule${mediaCount > 1 ? 's have' : ' has'} been deleted</strong>.</p>
             <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <p style="color: #374151; margin: 0 0 8px;">🗑️ Audio/video files deleted</p>
-              <p style="color: #374151; margin: 0;">✅ Text capsules are still safe and will be delivered</p>
+              <p style="color: #374151; margin: 0 0 8px;">🗑️ Audio/video files deleted from our servers</p>
+              <p style="color: #374151; margin: 0;">✅ Text capsules are still safe and will be delivered on schedule</p>
             </div>
             <p style="color: #6b7280; font-size: 14px;">Want to add audio/video again? You can resubscribe or use our per-capsule payment option.</p>
             <a href="https://www.mytimecapsule.app/upgrade"

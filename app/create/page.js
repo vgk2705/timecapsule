@@ -53,13 +53,16 @@ export default function CreateCapsule() {
   })
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState('')
   const [wordCount, setWordCount] = useState(0)
   const [isPaid, setIsPaid] = useState(false)
+  const [currentPlan, setCurrentPlan] = useState('free')
   const [capsuleCount, setCapsuleCount] = useState(0)
   const [limitReached, setLimitReached] = useState(false)
   const [isIndia, setIsIndia] = useState(false)
   const [audioFile, setAudioFile] = useState(null)
   const [videoFile, setVideoFile] = useState(null)
+  const [userId, setUserId] = useState(null)
 
   // Legacy mode states
   const [isLegacyMode, setIsLegacyMode] = useState(false)
@@ -71,8 +74,8 @@ export default function CreateCapsule() {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.href = '/login'; return }
+      setUserId(user.id)
 
-      // Check if legacy mode from URL
       const params = new URLSearchParams(window.location.search)
       const legacyParam = params.get('legacy') === 'true'
       setIsLegacyMode(legacyParam)
@@ -86,6 +89,7 @@ export default function CreateCapsule() {
         .single()
       const paid = sub && (sub.plan === 'loved' || sub.plan === 'forever')
       setIsPaid(paid)
+      setCurrentPlan(sub?.plan || 'free')
 
       // Check legacy plan
       const { data: legacy } = await supabase
@@ -97,13 +101,10 @@ export default function CreateCapsule() {
       setLegacyPlan(legacy || null)
 
       if (legacyParam) {
-        // Legacy mode checks
         if (!legacy) {
-          // No legacy plan — redirect to setup
           window.location.href = '/legacy-setup'
           return
         }
-        // Count existing legacy capsules
         const { data: legacyCapsules } = await supabase
           .from('capsules')
           .select('id')
@@ -116,7 +117,6 @@ export default function CreateCapsule() {
           return
         }
       } else {
-        // Normal mode — check free capsule limit
         if (!paid) {
           const { data: capsules } = await supabase
             .from('capsules')
@@ -199,33 +199,70 @@ export default function CreateCapsule() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
 
+    let mediaUrl = null
+    let mediaFileName = null
+    let mediaFileSize = null
+
+    // Upload file to Cloudflare R2 if audio or video selected
+    const fileToUpload = messageType === 'audio' ? audioFile : messageType === 'video' ? videoFile : null
+
+    if (fileToUpload && (messageType === 'audio' || messageType === 'video')) {
+      setUploadProgress('Uploading your media file...')
+      try {
+        const uploadFormData = new FormData()
+        uploadFormData.append('file', fileToUpload)
+        uploadFormData.append('userId', user.id)
+        uploadFormData.append('fileType', messageType)
+        uploadFormData.append('plan', isLegacyMode ? 'legacy' : currentPlan)
+
+        const uploadRes = await fetch('/api/upload-media', {
+          method: 'POST',
+          body: uploadFormData,
+        })
+
+        const uploadData = await uploadRes.json()
+        if (uploadData.error) {
+          alert(uploadData.error)
+          setLoading(false)
+          setUploadProgress('')
+          return
+        }
+
+        mediaUrl = uploadData.url
+        mediaFileName = fileToUpload.name
+        mediaFileSize = fileToUpload.size
+        setUploadProgress('Sealing your capsule...')
+      } catch (err) {
+        alert('Upload failed. Please try again.')
+        setLoading(false)
+        setUploadProgress('')
+        return
+      }
+    }
+
     const insertData = {
       sender_name: form.senderName,
       relationship: form.relationship,
       recipient_name: form.recipientName,
       recipient_email: form.recipientEmail,
-      message: form.message || '',
+      message: form.message || (messageType === 'audio'
+        ? `[Audio message: ${mediaFileName || 'audio file'}]`
+        : messageType === 'video'
+        ? `[Video message: ${mediaFileName || 'video file'}]`
+        : ''),
       unlock_date: isLegacyMode ? null : form.unlockDate,
       status: 'locked',
       is_legacy: isLegacyMode,
+      media_type: messageType !== 'text' ? messageType : null,
+      media_url: mediaUrl,
+      media_file_name: mediaFileName,
+      media_file_size: mediaFileSize,
     }
     if (user) insertData.sender_id = user.id
 
-    if (messageType === 'audio' && audioFile) {
-      insertData.media_type = 'audio'
-      insertData.media_file_name = audioFile.name
-      insertData.media_file_size = audioFile.size
-      if (!insertData.message) insertData.message = `[Audio message: ${audioFile.name}]`
-    }
-    if (messageType === 'video' && videoFile) {
-      insertData.media_type = 'video'
-      insertData.media_file_name = videoFile.name
-      insertData.media_file_size = videoFile.size
-      if (!insertData.message) insertData.message = `[Video message: ${videoFile.name}]`
-    }
-
     const { error } = await supabase.from('capsules').insert(insertData)
     setLoading(false)
+    setUploadProgress('')
     if (!error) setSubmitted(true)
     else alert('Something went wrong. Please try again.')
   }
@@ -245,10 +282,8 @@ export default function CreateCapsule() {
   }
 
   // Theme based on mode
-  const accent = isLegacyMode ? 'purple' : 'amber'
   const accentClasses = isLegacyMode ? {
     bg: 'bg-purple-50',
-    border: 'border-purple-200',
     ring: 'focus:ring-purple-300',
     btn: 'bg-purple-600 hover:bg-purple-700',
     text: 'text-purple-600',
@@ -256,7 +291,6 @@ export default function CreateCapsule() {
     tab: 'text-purple-600',
   } : {
     bg: 'bg-amber-50',
-    border: 'border-amber-200',
     ring: 'focus:ring-amber-300',
     btn: 'bg-amber-500 hover:bg-amber-600',
     text: 'text-amber-600',
@@ -390,7 +424,7 @@ export default function CreateCapsule() {
             </div>
           )}
 
-          {/* Free plan counter — normal mode */}
+          {/* Free plan counter */}
           {!isPaid && !isLegacyMode && (
             <div className={`rounded-xl px-4 py-2 mb-4 text-sm text-center ${
               capsuleCount >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
@@ -413,7 +447,7 @@ export default function CreateCapsule() {
 
           <div className="bg-white rounded-2xl shadow-sm p-5 md:p-8">
 
-            {/* Step 1 — Who is this for */}
+            {/* Step 1 */}
             {step === 1 && (
               <div>
                 <div className="text-3xl mb-2">{isLegacyMode ? '👻' : '👤'}</div>
@@ -475,7 +509,6 @@ export default function CreateCapsule() {
                       placeholder="their@email.com" />
                   </div>
 
-                  {/* DOB only for normal mode */}
                   {!isLegacyMode && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -489,7 +522,7 @@ export default function CreateCapsule() {
                   <p className="text-xs text-gray-400"><span className="text-red-500">*</span> Required fields</p>
 
                   <button
-                    onClick={() => isLegacyMode ? setStep(2) : setStep(2)}
+                    onClick={() => setStep(2)}
                     disabled={!form.senderName || !form.relationship || !form.recipientName || !form.recipientEmail}
                     className={`w-full ${accentClasses.btn} disabled:opacity-40 text-white py-4 rounded-xl font-medium transition`}>
                     Next →
@@ -498,7 +531,7 @@ export default function CreateCapsule() {
               </div>
             )}
 
-            {/* Step 2 — Milestone (normal) OR Message (legacy) */}
+            {/* Step 2 — Milestone (normal mode only) */}
             {step === 2 && !isLegacyMode && (
               <div>
                 <div className="text-3xl mb-2">🎯</div>
@@ -557,7 +590,6 @@ export default function CreateCapsule() {
                   }
                 </p>
 
-                {/* Legacy info box */}
                 {isLegacyMode && (
                   <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-5 text-xs text-purple-700">
                     <p>👻 This is a <strong>legacy capsule</strong> — delivered only after team verification.</p>
@@ -610,7 +642,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Audio — locked for free non-legacy users */}
+                {/* Audio — locked for free non-legacy */}
                 {messageType === 'audio' && !isPaid && !isLegacyMode && (
                   <div className="border-2 border-dashed border-amber-200 rounded-xl p-6 text-center bg-amber-50">
                     <div className="text-4xl mb-3">🎵</div>
@@ -626,9 +658,11 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Audio — unlocked for paid OR legacy users */}
+                {/* Audio — unlocked */}
                 {messageType === 'audio' && (isPaid || isLegacyMode) && (
-                  <div className={`border-2 rounded-xl p-6 text-center ${audioFile ? 'border-green-300 bg-green-50' : isLegacyMode ? 'border-purple-200 bg-purple-50' : 'border-green-200 bg-green-50'}`}>
+                  <div className={`border-2 rounded-xl p-6 text-center ${
+                    audioFile ? 'border-green-300 bg-green-50' : isLegacyMode ? 'border-purple-200 bg-purple-50' : 'border-green-200 bg-green-50'
+                  }`}>
                     <div className="text-4xl mb-3">🎵</div>
                     <h3 className="text-base font-bold text-gray-800 mb-2">Audio Message</h3>
                     <p className="text-gray-500 text-sm mb-4">Upload an audio file or record your voice.</p>
@@ -641,11 +675,11 @@ export default function CreateCapsule() {
                         <p className="text-xs text-gray-400 mt-1">{(audioFile.size / 1024 / 1024).toFixed(2)} MB</p>
                       </div>
                     )}
-                    <p className="text-gray-400 text-xs mt-3">MP3, WAV, M4A · Max 50MB</p>
+                    <p className="text-gray-400 text-xs mt-3">MP3, WAV, M4A · Max 50MB · Uploaded securely to cloud</p>
                   </div>
                 )}
 
-                {/* Video — locked for free non-legacy users */}
+                {/* Video — locked for free non-legacy */}
                 {messageType === 'video' && !isPaid && !isLegacyMode && (
                   <div className="border-2 border-dashed border-amber-200 rounded-xl p-6 text-center bg-amber-50">
                     <div className="text-4xl mb-3">🎥</div>
@@ -661,9 +695,11 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Video — unlocked for paid OR legacy users */}
+                {/* Video — unlocked */}
                 {messageType === 'video' && (isPaid || isLegacyMode) && (
-                  <div className={`border-2 rounded-xl p-6 text-center ${videoFile ? 'border-green-300 bg-green-50' : isLegacyMode ? 'border-purple-200 bg-purple-50' : 'border-green-200 bg-green-50'}`}>
+                  <div className={`border-2 rounded-xl p-6 text-center ${
+                    videoFile ? 'border-green-300 bg-green-50' : isLegacyMode ? 'border-purple-200 bg-purple-50' : 'border-green-200 bg-green-50'
+                  }`}>
                     <div className="text-4xl mb-3">🎥</div>
                     <h3 className="text-base font-bold text-gray-800 mb-2">Video Message</h3>
                     <p className="text-gray-500 text-sm mb-4">Upload a video file.</p>
@@ -676,7 +712,14 @@ export default function CreateCapsule() {
                         <p className="text-xs text-gray-400 mt-1">{(videoFile.size / 1024 / 1024).toFixed(2)} MB</p>
                       </div>
                     )}
-                    <p className="text-gray-400 text-xs mt-3">MP4, MOV · Max 500MB</p>
+                    <p className="text-gray-400 text-xs mt-3">MP4, MOV · Max 500MB · Uploaded securely to cloud</p>
+                  </div>
+                )}
+
+                {/* Upload progress */}
+                {uploadProgress && (
+                  <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                    <p className="text-sm text-blue-700">⏳ {uploadProgress}</p>
                   </div>
                 )}
 
@@ -687,7 +730,10 @@ export default function CreateCapsule() {
                   </button>
                   <button onClick={handleSubmit} disabled={isSealDisabled()}
                     className={`flex-1 ${accentClasses.btn} disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm`}>
-                    {loading ? 'Sealing...' : isLegacyMode ? 'Seal legacy capsule 👻' : 'Seal capsule 🔒'}
+                    {loading
+                      ? uploadProgress ? 'Uploading...' : 'Sealing...'
+                      : isLegacyMode ? 'Seal legacy capsule 👻' : 'Seal capsule 🔒'
+                    }
                   </button>
                 </div>
 
@@ -695,10 +741,10 @@ export default function CreateCapsule() {
                   <p className="text-center text-xs text-gray-400 mt-3">Switch to Text tab to seal your capsule for now.</p>
                 )}
                 {messageType === 'audio' && (isPaid || isLegacyMode) && !audioFile && (
-                  <p className={`text-center text-xs ${accentClasses.text} mt-3`}>Please select an audio file.</p>
+                  <p className={`text-center text-xs ${accentClasses.text} mt-3`}>Please select an audio file to continue.</p>
                 )}
                 {messageType === 'video' && (isPaid || isLegacyMode) && !videoFile && (
-                  <p className={`text-center text-xs ${accentClasses.text} mt-3`}>Please select a video file.</p>
+                  <p className={`text-center text-xs ${accentClasses.text} mt-3`}>Please select a video file to continue.</p>
                 )}
               </div>
             )}
