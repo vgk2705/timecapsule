@@ -196,76 +196,105 @@ export default function CreateCapsule() {
   }
 
   const handleSubmit = async () => {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+  setLoading(true)
+  const { data: { user } } = await supabase.auth.getUser()
 
-    let mediaUrl = null
-    let mediaFileName = null
-    let mediaFileSize = null
+  let mediaUrl = null
+  let mediaFileName = null
+  let mediaFileSize = null
 
-    // Upload file to Cloudflare R2 if audio or video selected
-    const fileToUpload = messageType === 'audio' ? audioFile : messageType === 'video' ? videoFile : null
+  const fileToUpload = messageType === 'audio' ? audioFile : messageType === 'video' ? videoFile : null
 
-    if (fileToUpload && (messageType === 'audio' || messageType === 'video')) {
-      setUploadProgress('Uploading your media file...')
-      try {
-        const uploadFormData = new FormData()
-        uploadFormData.append('file', fileToUpload)
-        uploadFormData.append('userId', user.id)
-        uploadFormData.append('fileType', messageType)
-        uploadFormData.append('plan', isLegacyMode ? 'legacy' : currentPlan)
+  if (fileToUpload && (messageType === 'audio' || messageType === 'video')) {
+    setUploadProgress('Preparing upload...')
+    try {
+      // Step 1 — Get presigned URL from your API
+      const urlRes = await fetch('/api/get-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          fileType: messageType,
+          fileName: fileToUpload.name,
+          fileSize: fileToUpload.size,
+          contentType: fileToUpload.type,
+          plan: isLegacyMode ? 'legacy' : currentPlan,
+        }),
+      })
 
-        const uploadRes = await fetch('/api/upload-media', {
-          method: 'POST',
-          body: uploadFormData,
-        })
-
-        const uploadData = await uploadRes.json()
-        if (uploadData.error) {
-          alert(uploadData.error)
-          setLoading(false)
-          setUploadProgress('')
-          return
-        }
-
-        mediaUrl = uploadData.url
-        mediaFileName = fileToUpload.name
-        mediaFileSize = fileToUpload.size
-        setUploadProgress('Sealing your capsule...')
-      } catch (err) {
-        alert('Upload failed. Please try again.')
+      const urlData = await urlRes.json()
+      if (urlData.error) {
+        alert(urlData.error)
         setLoading(false)
         setUploadProgress('')
         return
       }
-    }
 
-    const insertData = {
-      sender_name: form.senderName,
-      relationship: form.relationship,
-      recipient_name: form.recipientName,
-      recipient_email: form.recipientEmail,
-      message: form.message || (messageType === 'audio'
-        ? `[Audio message: ${mediaFileName || 'audio file'}]`
-        : messageType === 'video'
-        ? `[Video message: ${mediaFileName || 'video file'}]`
-        : ''),
-      unlock_date: isLegacyMode ? null : form.unlockDate,
-      status: 'locked',
-      is_legacy: isLegacyMode,
-      media_type: messageType !== 'text' ? messageType : null,
-      media_url: mediaUrl,
-      media_file_name: mediaFileName,
-      media_file_size: mediaFileSize,
-    }
-    if (user) insertData.sender_id = user.id
+      // Step 2 — Upload directly from browser to R2 (bypasses Vercel!)
+      setUploadProgress('Uploading your media file...')
+      const uploadRes = await fetch(urlData.presignedUrl, {
+        method: 'PUT',
+        body: fileToUpload,
+        headers: {
+          'Content-Type': fileToUpload.type,
+        },
+      })
 
-    const { error } = await supabase.from('capsules').insert(insertData)
-    setLoading(false)
-    setUploadProgress('')
-    if (!error) setSubmitted(true)
-    else alert('Something went wrong. Please try again.')
+      if (!uploadRes.ok) {
+        throw new Error('Upload to storage failed')
+      }
+
+      // Step 3 — Confirm upload and update storage usage
+      setUploadProgress('Saving capsule...')
+      await fetch('/api/confirm-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          fileType: messageType,
+          fileSize: fileToUpload.size,
+        }),
+      })
+
+      mediaUrl = urlData.publicUrl
+      mediaFileName = fileToUpload.name
+      mediaFileSize = fileToUpload.size
+
+    } catch (err) {
+      alert('Upload failed. Please try again.')
+      setLoading(false)
+      setUploadProgress('')
+      return
+    }
   }
+
+  // Insert capsule record
+  const insertData = {
+    sender_name: form.senderName,
+    relationship: form.relationship,
+    recipient_name: form.recipientName,
+    recipient_email: form.recipientEmail,
+    message: form.message || (messageType === 'audio'
+      ? `[Audio message: ${mediaFileName || 'audio file'}]`
+      : messageType === 'video'
+      ? `[Video message: ${mediaFileName || 'video file'}]`
+      : ''),
+    unlock_date: isLegacyMode ? null : form.unlockDate,
+    status: 'locked',
+    is_legacy: isLegacyMode,
+    media_type: messageType !== 'text' ? messageType : null,
+    media_url: mediaUrl,
+    media_file_name: mediaFileName,
+    media_file_size: mediaFileSize,
+  }
+  if (user) insertData.sender_id = user.id
+
+  const { error } = await supabase.from('capsules').insert(insertData)
+  setLoading(false)
+  setUploadProgress('')
+  if (!error) setSubmitted(true)
+  else alert('Something went wrong saving your capsule. Please try again.')
+}
 
   const isSealDisabled = () => {
     if (loading) return true

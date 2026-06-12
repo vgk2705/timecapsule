@@ -10,7 +10,6 @@ export const r2Client = new S3Client({
   },
 })
 
-// Upload file to R2
 export async function uploadToR2(bucket, key, file, contentType) {
   const command = new PutObjectCommand({
     Bucket: bucket,
@@ -22,7 +21,6 @@ export async function uploadToR2(bucket, key, file, contentType) {
   return `${process.env.CLOUDFLARE_R2_PUBLIC_URL}/${key}`
 }
 
-// Delete file from R2
 export async function deleteFromR2(bucket, key) {
   const command = new DeleteObjectCommand({
     Bucket: bucket,
@@ -31,11 +29,20 @@ export async function deleteFromR2(bucket, key) {
   await r2Client.send(command)
 }
 
-// Get signed URL for private files (proof documents)
 export async function getSignedUrlForR2(bucket, key, expiresIn = 3600) {
   const command = new GetObjectCommand({
     Bucket: bucket,
     Key: key,
+  })
+  return await getSignedUrl(r2Client, command, { expiresIn })
+}
+
+// NEW — Generate presigned URL for direct browser upload
+export async function getPresignedUploadUrl(bucket, key, contentType, expiresIn = 3600) {
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    ContentType: contentType,
   })
   return await getSignedUrl(r2Client, command, { expiresIn })
 }

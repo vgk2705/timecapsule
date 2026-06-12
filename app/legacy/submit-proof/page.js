@@ -49,22 +49,37 @@ export default function SubmitProof() {
 
     try {
       // Upload proof document to Cloudflare R2 via API
-      setUploadProgress('Uploading document...')
-      const uploadFormData = new FormData()
-      uploadFormData.append('file', proofFile)
-      uploadFormData.append('userId', contactInfo.user_id)
-      uploadFormData.append('fileType', 'proof')
+      // Step 1 — Get presigned URL
+setUploadProgress('Preparing upload...')
+const urlRes = await fetch('/api/get-upload-url', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: contactInfo.user_id,
+    fileType: 'proof',
+    fileName: proofFile.name,
+    fileSize: proofFile.size,
+    contentType: proofFile.type,
+    plan: 'legacy',
+  }),
+})
 
-      const uploadRes = await fetch('/api/upload-media', {
-        method: 'POST',
-        body: uploadFormData,
-      })
+const urlData = await urlRes.json()
+if (urlData.error) throw new Error(urlData.error)
 
-      const uploadData = await uploadRes.json()
-      if (uploadData.error) throw new Error(uploadData.error)
+// Step 2 — Upload directly to R2
+setUploadProgress('Uploading document...')
+const uploadRes = await fetch(urlData.presignedUrl, {
+  method: 'PUT',
+  body: proofFile,
+  headers: { 'Content-Type': proofFile.type },
+})
 
-      const proofUrl = uploadData.url
-      setUploadProgress('Saving verification record...')
+if (!uploadRes.ok) throw new Error('Failed to upload document')
+
+// Use the key to build a signed URL for admin to view later
+const proofUrl = `proof:${urlData.key}` // Store key, admin uses signed URL to view
+setUploadProgress('Saving verification record...')
 
       // Save verification record to Supabase
       const { error: verifyError } = await supabase
