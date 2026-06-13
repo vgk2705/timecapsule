@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { deleteFromR2 } from '../lib/r2'
 
 export default function Dashboard() {
   const [capsules, setCapsules] = useState([])
@@ -13,6 +14,7 @@ export default function Dashboard() {
   const [legacyPlan, setLegacyPlan] = useState(null)
   const [isIndia, setIsIndia] = useState(false)
   const [cancelledSub, setCancelledSub] = useState(null)
+  const [capsulePayments, setCapsulePayments] = useState({})
 
   useEffect(() => {
     const getUser = async () => {
@@ -23,10 +25,10 @@ export default function Dashboard() {
       fetchSubscription(user.id)
       fetchLegacyPlan(user.id)
       fetchCancelledSub(user.id)
+      fetchCapsulePayments(user.id)
     }
     getUser()
 
-    // Detect India
     fetch('https://ipapi.co/json/')
       .then(r => r.json())
       .then(data => { if (data.country_code === 'IN') setIsIndia(true) })
@@ -54,7 +56,6 @@ export default function Dashboard() {
   }
 
   const fetchCancelledSub = async (userId) => {
-    // Check if user has a recently cancelled subscription still in grace period
     const { data } = await supabase
       .from('subscriptions')
       .select('*')
@@ -65,7 +66,6 @@ export default function Dashboard() {
       .single()
 
     if (data) {
-      // Check if within 180 days grace period
       const cancelledDate = new Date(data.updated_at)
       const daysSinceCancelled = Math.floor((new Date() - cancelledDate) / (1000 * 60 * 60 * 24))
       if (daysSinceCancelled < 180) {
@@ -84,11 +84,66 @@ export default function Dashboard() {
     setLegacyPlan(data || null)
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this capsule? This cannot be undone.')) return
-    setDeleting(id)
-    await supabase.from('capsules').delete().eq('id', id)
-    setCapsules(capsules.filter(c => c.id !== id))
+  const fetchCapsulePayments = async (userId) => {
+    const { data } = await supabase
+      .from('capsule_payments')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'paid')
+    if (data) {
+      const map = {}
+      data.forEach(p => { if (p.capsule_id) map[p.capsule_id] = p })
+      setCapsulePayments(map)
+    }
+  }
+
+  const handleDelete = async (capsule) => {
+    const hasPayment = capsulePayments[capsule.id]
+    const isMediaCapsule = capsule.media_type === 'audio' || capsule.media_type === 'video'
+
+    let confirmMsg = 'Are you sure you want to delete this capsule? This cannot be undone.'
+
+    if (hasPayment && isMediaCapsule) {
+      const amount = hasPayment.currency === 'INR'
+        ? `₹${hasPayment.amount}`
+        : `€${hasPayment.amount}`
+      confirmMsg = `Are you sure you want to delete this ${capsule.media_type} capsule?\n\n⚠️ No refund policy: You paid ${amount} for this capsule. Deleting it will permanently remove the file. No refund will be issued.\n\nThis cannot be undone.`
+    }
+
+    if (!confirm(confirmMsg)) return
+    setDeleting(capsule.id)
+
+    try {
+      // Delete from Cloudflare R2 if has media
+      if (capsule.media_url) {
+        const key = capsule.media_url.replace(
+          process.env.NEXT_PUBLIC_R2_PUBLIC_URL + '/',
+          ''
+        )
+        await fetch('/api/delete-media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, userId: user.id, fileSize: capsule.media_file_size, mediaType: capsule.media_type })
+        })
+      }
+
+      // Mark payment as capsule_deleted
+      if (hasPayment) {
+        await supabase
+          .from('capsule_payments')
+          .update({ status: 'capsule_deleted' })
+          .eq('id', hasPayment.id)
+      }
+
+      // Delete capsule from DB
+      await supabase.from('capsules').delete().eq('id', capsule.id)
+      setCapsules(capsules.filter(c => c.id !== capsule.id))
+
+    } catch (err) {
+      console.error('Delete error:', err)
+      alert('Error deleting capsule. Please try again.')
+    }
+
     setDeleting(null)
   }
 
@@ -117,8 +172,6 @@ export default function Dashboard() {
   const currentPlan = subscription?.plan || 'free'
   const planBadge = planConfig[currentPlan] || planConfig.free
   const isPaid = currentPlan !== 'free'
-
-  // Media capsules (audio/video) — for grace period warning
   const mediaCapsules = capsules.filter(c => c.media_type === 'audio' || c.media_type === 'video')
 
   if (loading) return (
@@ -156,12 +209,10 @@ export default function Dashboard() {
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 md:px-6 py-6 md:py-10">
 
-        {/* Grace period warning — cancelled subscription */}
+        {/* Grace period warning */}
         {cancelledSub && mediaCapsules.length > 0 && (
           <div className={`rounded-2xl p-4 md:p-5 mb-4 border-2 ${
-            cancelledSub.daysLeft <= 30
-              ? 'bg-red-50 border-red-300'
-              : 'bg-orange-50 border-orange-200'
+            cancelledSub.daysLeft <= 30 ? 'bg-red-50 border-red-300' : 'bg-orange-50 border-orange-200'
           }`}>
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -175,14 +226,11 @@ export default function Dashboard() {
               </div>
               <a href="/upgrade"
                 className={`px-3 py-2 rounded-xl text-sm font-bold transition flex-shrink-0 ${
-                  cancelledSub.daysLeft <= 30
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-orange-500 hover:bg-orange-600 text-white'
+                  cancelledSub.daysLeft <= 30 ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'
                 }`}>
                 Resubscribe
               </a>
             </div>
-            {/* Grace period progress bar */}
             <div className="mt-3">
               <div className="flex justify-between text-xs text-gray-400 mb-1">
                 <span>Cancelled {cancelledSub.daysSinceCancelled} days ago</span>
@@ -213,7 +261,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Active plan banner for paid users */}
+        {/* Active plan banner */}
         {isPaid && (
           <div className="bg-gradient-to-r from-green-400 to-green-500 rounded-2xl p-4 md:p-5 mb-4 flex items-center justify-between gap-4">
             <div>
@@ -249,7 +297,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Legacy upsell for all users without legacy plan */}
+        {/* Legacy upsell */}
         {!legacyPlan && (
           <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4">
             <div>
@@ -264,13 +312,13 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Per capsule upsell — for free users or cancelled users with media capsules */}
+        {/* Per capsule upsell */}
         {(!isPaid || cancelledSub) && (
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4">
             <div>
               <p className="text-blue-800 font-bold text-sm">🎵 Send audio or video — pay per capsule</p>
               <p className="text-blue-600 text-xs mt-0.5">
-                No subscription needed · Audio from {isIndia ? '₹99' : '€2.99'} · Video from {isIndia ? '₹299' : '€8.99'}
+                No subscription needed · Audio from {isIndia ? '₹49' : '€1.49'} · Video from {isIndia ? '₹149' : '€4.99'}
               </p>
             </div>
             <a href="/upgrade#per-capsule" className="bg-blue-500 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-blue-600 transition flex-shrink-0">
@@ -309,84 +357,118 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {capsules.map(capsule => (
-              <div key={capsule.id} className={`bg-white rounded-2xl p-4 md:p-6 shadow-sm ${
-                capsule.is_legacy ? 'border-l-4 border-purple-400' : ''
-              } ${
-                cancelledSub && (capsule.media_type === 'audio' || capsule.media_type === 'video')
-                  ? 'border border-orange-200'
-                  : ''
-              }`}>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <p className="text-sm text-amber-600 font-medium">To: {capsule.recipient_name}</p>
-                      {capsule.is_legacy && (
-                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">👻 Legacy</span>
-                      )}
-                      {(capsule.media_type === 'audio' || capsule.media_type === 'video') && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
-                          {capsule.media_type === 'audio' ? '🎵 Audio' : '🎥 Video'}
-                        </span>
-                      )}
-                      {cancelledSub && (capsule.media_type === 'audio' || capsule.media_type === 'video') && (
-                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
-                          ⚠️ Deletes in {cancelledSub.daysLeft}d
-                        </span>
-                      )}
-                    </div>
-                    {editingId === capsule.id ? (
-                      <div className="space-y-3">
-                        <textarea value={editMessage} onChange={e => setEditMessage(e.target.value)} rows={4}
-                          className="w-full border border-amber-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                        <div className="flex gap-2">
-                          <button onClick={() => handleEditSave(capsule.id)}
-                            className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition">Save</button>
-                          <button onClick={() => setEditingId(null)}
-                            className="border border-gray-200 text-gray-500 px-4 py-2 rounded-xl text-sm transition hover:border-gray-300">Cancel</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-gray-700 text-sm line-clamp-2 break-words">{capsule.message}</p>
-                    )}
-                  </div>
+            {capsules.map(capsule => {
+              const hasPayment = capsulePayments[capsule.id]
+              const isMediaCapsule = capsule.media_type === 'audio' || capsule.media_type === 'video'
 
-                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-0 flex-shrink-0">
-                    <div className="sm:text-right">
-                      <span className={`inline-block text-xs px-3 py-1 rounded-full mb-1 ${
-                        capsule.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {capsule.status === 'delivered' ? '✅ Delivered' : '🔒 Locked'}
-                      </span>
-                      <p className="text-xs text-gray-400 mb-1">
-                        {capsule.is_legacy
-                          ? '👻 Delivered after passing'
-                          : `${capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} ${capsule.unlock_date}`
-                        }
-                      </p>
-                      <p className="text-xs text-gray-300 mb-2 sm:mb-3">
-                        {capsule.updated_at
-                          ? `✏️ Edited ${new Date(capsule.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                          : `📅 Created ${new Date(capsule.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                        }
-                      </p>
-                    </div>
-                    {capsule.status === 'locked' && editingId !== capsule.id && (
-                      <div className="flex gap-2">
-                        <button onClick={() => { setEditingId(capsule.id); setEditMessage(capsule.message) }}
-                          className="text-xs text-amber-600 hover:text-amber-700 border border-amber-200 px-3 py-1 rounded-lg transition">
-                          ✏️ Edit
-                        </button>
-                        <button onClick={() => handleDelete(capsule.id)} disabled={deleting === capsule.id}
-                          className="text-xs text-red-400 hover:text-red-600 border border-red-100 px-3 py-1 rounded-lg transition">
-                          {deleting === capsule.id ? '...' : '🗑️ Delete'}
-                        </button>
+              return (
+                <div key={capsule.id} className={`bg-white rounded-2xl p-4 md:p-6 shadow-sm ${
+                  capsule.is_legacy ? 'border-l-4 border-purple-400' : ''
+                } ${
+                  cancelledSub && isMediaCapsule ? 'border border-orange-200' : ''
+                }`}>
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <p className="text-sm text-amber-600 font-medium">To: {capsule.recipient_name}</p>
+                        {capsule.is_legacy && (
+                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">👻 Legacy</span>
+                        )}
+                        {isMediaCapsule && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                            {capsule.media_type === 'audio' ? '🎵 Audio' : '🎥 Video'}
+                          </span>
+                        )}
+                        {hasPayment && isMediaCapsule && (
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
+                            💳 Paid
+                          </span>
+                        )}
+                        {cancelledSub && isMediaCapsule && (
+                          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
+                            ⚠️ Deletes in {cancelledSub.daysLeft}d
+                          </span>
+                        )}
                       </div>
-                    )}
+
+                      {/* Show message or media info */}
+                      {editingId === capsule.id ? (
+                        <div className="space-y-3">
+                          <textarea value={editMessage} onChange={e => setEditMessage(e.target.value)} rows={4}
+                            className="w-full border border-amber-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                          <div className="flex gap-2">
+                            <button onClick={() => handleEditSave(capsule.id)}
+                              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition">Save</button>
+                            <button onClick={() => setEditingId(null)}
+                              className="border border-gray-200 text-gray-500 px-4 py-2 rounded-xl text-sm transition hover:border-gray-300">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-gray-700 text-sm line-clamp-2 break-words">{capsule.message}</p>
+                          {/* Show file info for media capsules */}
+                          {isMediaCapsule && capsule.media_file_name && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              📁 {capsule.media_file_name}
+                              {capsule.media_file_size && ` · ${(capsule.media_file_size / 1024 / 1024).toFixed(1)} MB`}
+                            </p>
+                          )}
+                          {/* No refund notice for paid media capsules */}
+                          {hasPayment && isMediaCapsule && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              💳 Paid {hasPayment.currency === 'INR' ? '₹' : '€'}{hasPayment.amount} · No refund on delete
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-0 flex-shrink-0">
+                      <div className="sm:text-right">
+                        <span className={`inline-block text-xs px-3 py-1 rounded-full mb-1 ${
+                          capsule.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {capsule.status === 'delivered' ? '✅ Delivered' : '🔒 Locked'}
+                        </span>
+                        <p className="text-xs text-gray-400 mb-1">
+                          {capsule.is_legacy
+                            ? '👻 Delivered after passing'
+                            : `${capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} ${capsule.unlock_date}`
+                          }
+                        </p>
+                        <p className="text-xs text-gray-300 mb-2 sm:mb-3">
+                          {capsule.updated_at
+                            ? `✏️ Edited ${new Date(capsule.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                            : `📅 Created ${new Date(capsule.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                          }
+                        </p>
+                      </div>
+
+                      {/* Action buttons */}
+                      {capsule.status === 'locked' && editingId !== capsule.id && (
+                        <div className="flex gap-2">
+                          {/* Edit only for text capsules */}
+                          {!isMediaCapsule && (
+                            <button
+                              onClick={() => { setEditingId(capsule.id); setEditMessage(capsule.message) }}
+                              className="text-xs text-amber-600 hover:text-amber-700 border border-amber-200 px-3 py-1 rounded-lg transition">
+                              ✏️ Edit
+                            </button>
+                          )}
+                          {/* Delete for all */}
+                          <button
+                            onClick={() => handleDelete(capsule)}
+                            disabled={deleting === capsule.id}
+                            className="text-xs text-red-400 hover:text-red-600 border border-red-100 px-3 py-1 rounded-lg transition">
+                            {deleting === capsule.id ? '...' : '🗑️ Delete'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </main>
