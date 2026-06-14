@@ -14,7 +14,15 @@ export default function SubmitProof() {
   const [error, setError] = useState('')
   const [uploadProgress, setUploadProgress] = useState('')
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
   const handleFindContact = async () => {
+    // ✅ Validate email format before searching
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address (e.g. name@example.com)')
+      return
+    }
+
     setLoading(true)
     setError('')
     const { data, error } = await supabase
@@ -50,36 +58,36 @@ export default function SubmitProof() {
     try {
       // Upload proof document to Cloudflare R2 via API
       // Step 1 — Get presigned URL
-setUploadProgress('Preparing upload...')
-const urlRes = await fetch('/api/get-upload-url', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    userId: contactInfo.user_id,
-    fileType: 'proof',
-    fileName: proofFile.name,
-    fileSize: proofFile.size,
-    contentType: proofFile.type,
-    plan: 'legacy',
-  }),
-})
+      setUploadProgress('Preparing upload...')
+      const urlRes = await fetch('/api/get-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: contactInfo.user_id,
+          fileType: 'proof',
+          fileName: proofFile.name,
+          fileSize: proofFile.size,
+          contentType: proofFile.type,
+          plan: 'legacy',
+        }),
+      })
 
-const urlData = await urlRes.json()
-if (urlData.error) throw new Error(urlData.error)
+      const urlData = await urlRes.json()
+      if (urlData.error) throw new Error(urlData.error)
 
-// Step 2 — Upload directly to R2
-setUploadProgress('Uploading document...')
-const uploadRes = await fetch(urlData.presignedUrl, {
-  method: 'PUT',
-  body: proofFile,
-  headers: { 'Content-Type': proofFile.type },
-})
+      // Step 2 — Upload directly to R2
+      setUploadProgress('Uploading document...')
+      const uploadRes = await fetch(urlData.presignedUrl, {
+        method: 'PUT',
+        body: proofFile,
+        headers: { 'Content-Type': proofFile.type },
+      })
 
-if (!uploadRes.ok) throw new Error('Failed to upload document')
+      if (!uploadRes.ok) throw new Error('Failed to upload document')
 
-// Use the key to build a signed URL for admin to view later
-const proofUrl = `proof:${urlData.key}` // Store key, admin uses signed URL to view
-setUploadProgress('Saving verification record...')
+      // Use the key to build a signed URL for admin to view later
+      const proofUrl = `proof:${urlData.key}` // Store key, admin uses signed URL to view
+      setUploadProgress('Saving verification record...')
 
       // Save verification record to Supabase
       const { error: verifyError } = await supabase
@@ -178,9 +186,16 @@ setUploadProgress('Saving verification record...')
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleFindContact()}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  className={`w-full border rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-300 ${
+                    email && !emailRegex.test(email.trim())
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-gray-200'
+                  }`}
                   placeholder="your@email.com"
                 />
+                {email && !emailRegex.test(email.trim()) && (
+                  <p className="text-xs text-red-500 mt-1">Please enter a valid email address</p>
+                )}
               </div>
 
               {error && (

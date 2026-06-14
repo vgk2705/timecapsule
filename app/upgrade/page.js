@@ -77,7 +77,6 @@ export default function UpgradePage() {
       if (!data.user) { router.push('/login'); return }
       setUser(data.user)
 
-      // Check existing subscription
       const { data: sub } = await supabase
         .from('subscriptions')
         .select('plan, status')
@@ -86,7 +85,6 @@ export default function UpgradePage() {
         .single()
       setCurrentSub(sub)
 
-      // Check legacy plan
       const { data: legacy } = await supabase
         .from('legacy_plans')
         .select('id')
@@ -95,13 +93,11 @@ export default function UpgradePage() {
       setHasLegacy(!!legacy)
     })
 
-    // Detect India
     fetch('https://ipapi.co/json/')
       .then(r => r.json())
       .then(data => { setIsIndia(data.country_code === 'IN') })
       .catch(() => {})
 
-    // Load Razorpay
     const script = document.createElement('script')
     script.src = 'https://checkout.razorpay.com/v1/checkout.js'
     script.async = true
@@ -188,7 +184,6 @@ export default function UpgradePage() {
           )}
         </div>
 
-        {/* Current plan info */}
         {currentSub && (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-8 text-center">
             <p className="text-green-700 text-sm font-medium">
@@ -243,9 +238,88 @@ export default function UpgradePage() {
           ))}
         </div>
 
+        {/* ✅ Per-capsule section — updated with full pricing table */}
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 md:p-8 mt-8" id="per-capsule">
+          <div className="flex items-start gap-4 mb-6">
+            <span className="text-3xl">💳</span>
+            <div>
+              <h2 className="text-xl font-bold text-gray-800 mb-1">Pay Per Capsule</h2>
+              <p className="text-gray-500 text-sm">
+                No subscription needed. Pay once per audio or video capsule.
+                Price based on file size and how long we store it.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Audio pricing */}
+            <div className="bg-white rounded-xl p-4 border border-amber-200">
+              <p className="font-bold text-gray-800 mb-3">🎵 Audio (max 50MB)</p>
+              <div className="space-y-2 text-sm">
+                {[
+                  { label: 'Deliver within 1 year', inr: '₹49', eur: '€1.49' },
+                  { label: 'Deliver in 1-5 years', inr: '₹99', eur: '€2.99' },
+                  { label: 'Deliver in 5-10 years', inr: '₹199', eur: '€5.99' },
+                  { label: 'Deliver in 10+ years', inr: '₹399', eur: '€11.99' },
+                ].map((row, i) => (
+                  <div key={i} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                    <span className="text-gray-500">{row.label}</span>
+                    <span className="font-semibold text-gray-800">{isIndia ? row.inr : row.eur}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Video pricing */}
+            <div className="bg-white rounded-xl p-4 border border-amber-200">
+              <p className="font-bold text-gray-800 mb-3">🎥 Video (by file size)</p>
+              <div className="space-y-2 text-xs">
+                <p className="font-medium text-gray-600">Up to 100MB:</p>
+                {[
+                  { label: '1 yr', inr: '₹149', eur: '€4.99' },
+                  { label: '5 yr', inr: '₹299', eur: '€8.99' },
+                  { label: '10 yr', inr: '₹499', eur: '€16.99' },
+                ].map((row, i) => (
+                  <div key={i} className="flex justify-between py-0.5">
+                    <span className="text-gray-500">{row.label}</span>
+                    <span className="font-semibold">{isIndia ? row.inr : row.eur}</span>
+                  </div>
+                ))}
+                <p className="font-medium text-gray-600 mt-2">101MB - 500MB:</p>
+                {[
+                  { label: '1 yr', inr: '₹299', eur: '€9.99' },
+                  { label: '5 yr', inr: '₹599', eur: '€19.99' },
+                  { label: '10 yr', inr: '₹999', eur: '€33.99' },
+                ].map((row, i) => (
+                  <div key={i} className="flex justify-between py-0.5">
+                    <span className="text-gray-500">{row.label}</span>
+                    <span className="font-semibold">{isIndia ? row.inr : row.eur}</span>
+                  </div>
+                ))}
+                <p className="font-medium text-gray-600 mt-2">501MB - 2GB:</p>
+                {[
+                  { label: '1 yr', inr: '₹599', eur: '€19.99' },
+                  { label: '5 yr', inr: '₹1,199', eur: '€39.99' },
+                  { label: '10 yr', inr: '₹1,999', eur: '€66.99' },
+                ].map((row, i) => (
+                  <div key={i} className="flex justify-between py-0.5">
+                    <span className="text-gray-500">{row.label}</span>
+                    <span className="font-semibold">{isIndia ? row.inr : row.eur}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-amber-100 rounded-xl p-3 text-xs text-amber-700">
+            <p>⚠️ No refund policy: Payments are non-refundable if the capsule is deleted.</p>
+            <p className="mt-1">💡 Subscribe to Loved ({isIndia ? '₹99/mo' : '€2.99/mo'}) for unlimited audio & video capsules.</p>
+          </div>
+        </div>
+
         {/* Legacy Plan Section */}
         {!hasLegacy ? (
-          <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-6 md:p-8">
+          <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-6 md:p-8 mt-8">
             <div className="flex items-start gap-4 mb-6">
               <span className="text-4xl">👻</span>
               <div>
@@ -258,7 +332,6 @@ export default function UpgradePage() {
               </div>
             </div>
 
-            {/* Legacy pricing table */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               {[
                 { age: '20s', inr: '₹4,999', eur: '€149', years: 75 },
@@ -296,7 +369,7 @@ export default function UpgradePage() {
             </a>
           </div>
         ) : (
-          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 text-center">
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 text-center mt-8">
             <span className="text-4xl">👻</span>
             <h2 className="text-lg font-bold text-gray-800 mt-3 mb-2">Legacy Plan Active ✅</h2>
             <p className="text-gray-500 text-sm mb-4">Your legacy messages are safely stored.</p>

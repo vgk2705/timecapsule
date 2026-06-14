@@ -199,12 +199,25 @@ export default function PricingPage() {
               className="block w-full text-center border-2 border-amber-500 text-amber-600 hover:bg-amber-50 py-2.5 rounded-xl font-medium transition mb-5 text-sm">
               {user ? 'Dashboard' : 'Get started free'}
             </a>
-            <ul className="space-y-2 text-xs text-gray-600">
+            {/* ✅ Updated — per capsule option */}
+            <ul className="space-y-2 md:space-y-3 text-sm text-gray-600">
               <li>✅ 3 text capsules</li>
               <li>✅ 5,000 words total</li>
               <li>✅ Text stored forever</li>
               <li>✅ Email delivery</li>
-              <li className="text-gray-300">❌ Audio/Video</li>
+              <li>✅ All milestones</li>
+              <li className="text-gray-500">
+                🎵 Audio — pay per capsule
+                <span className="ml-1 text-xs text-amber-600 font-semibold">
+                  {isIndia ? 'from ₹49' : 'from €1.49'}
+                </span>
+              </li>
+              <li className="text-gray-500">
+                🎥 Video — pay per capsule
+                <span className="ml-1 text-xs text-amber-600 font-semibold">
+                  {isIndia ? 'from ₹149' : 'from €4.99'}
+                </span>
+              </li>
               <li className="text-gray-300">❌ Legacy plan</li>
             </ul>
           </div>
@@ -316,6 +329,40 @@ export default function PricingPage() {
             </p>
           </div>
         )}
+
+        {/* ✅ Per-capsule pricing note */}
+        <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5">
+          <div className="flex items-start gap-4">
+            <span className="text-2xl">💳</span>
+            <div>
+              <h3 className="font-bold text-gray-800 mb-1">No subscription? Pay per capsule</h3>
+              <p className="text-gray-500 text-sm mb-3">
+                Free users can send audio and video capsules without subscribing.
+                Price is based on file size and delivery date — the longer the storage, the higher the price.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: 'Audio · 1yr', inr: '₹49', eur: '€1.49' },
+                  { label: 'Audio · 5yr', inr: '₹99', eur: '€2.99' },
+                  { label: 'Audio · 10yr', inr: '₹199', eur: '€5.99' },
+                  { label: 'Audio · 10yr+', inr: '₹399', eur: '€11.99' },
+                  { label: 'Video · 1yr (≤100MB)', inr: '₹149', eur: '€4.99' },
+                  { label: 'Video · 5yr (≤100MB)', inr: '₹299', eur: '€8.99' },
+                  { label: 'Video · 1yr (101-500MB)', inr: '₹299', eur: '€9.99' },
+                  { label: 'Video · 5yr (101-500MB)', inr: '₹599', eur: '€19.99' },
+                ].map((row, i) => (
+                  <div key={i} className="bg-white rounded-xl p-3 border border-amber-100 text-center">
+                    <p className="text-xs text-gray-500 mb-1">{row.label}</p>
+                    <p className="font-bold text-gray-800">{isIndia ? row.inr : row.eur}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-3">
+                ⚠️ No refund if capsule is deleted after payment. Subscribe for unlimited at {isIndia ? '₹99/mo' : '€2.99/mo'}.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Legacy special note */}
         <div className="mt-6 bg-purple-50 border border-purple-200 rounded-2xl p-5">
