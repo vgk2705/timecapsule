@@ -15,11 +15,9 @@ export async function GET(request) {
   }
 
   const today = new Date()
-
-  // Find overdue check-ins
   const { data: overdueCheckins } = await supabase
     .from('checkins')
-    .select('*, auth.users!user_id(email)')
+    .select('*')
     .lt('next_checkin_due', today.toISOString())
     .eq('missed', false)
     .eq('legacy_alert_sent', false)
@@ -30,46 +28,97 @@ export async function GET(request) {
 
   let processed = 0
   for (const checkin of overdueCheckins) {
-    // Get user email
-    const { data: userData } = await supabase.auth.admin.getUserById(checkin.user_id)
-    const userEmail = userData?.user?.email
-    const userName = userData?.user?.user_metadata?.name || 'TimeCapsule user'
+    let userEmail = null
+    let userName = 'there'
+    try {
+      const { data: userData } = await supabase.auth.admin.getUserById(checkin.user_id)
+      userEmail = userData?.user?.email
+      userName = userData?.user?.user_metadata?.name || 'there'
+    } catch {}
 
-    if (userEmail) {
-      // Send check-in reminder to user
-      await resend.emails.send({
-        from: 'TimeCapsule <hello@mytimecapsule.app>',
-        to: userEmail,
-        subject: '⏳ TimeCapsule Check-in — Are you still with us?',
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-            <h1 style="color: #7c3aed;">⏳ TimeCapsule Check-in</h1>
-            <p style="font-size: 18px; color: #374151;">Hi <strong>${userName}</strong>,</p>
-            <p style="color: #6b7280;">This is your 6-month check-in reminder. Your legacy capsules are safely stored.</p>
-            <p style="color: #6b7280;">Please confirm you're still with us by clicking below:</p>
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="https://www.mytimecapsule.app/api/checkin-confirm?token=${checkin.checkin_token}"
-                style="background: #7c3aed; color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 16px;">
-                ✅ Yes, I'm still here
-              </a>
-            </div>
-            <p style="color: #9ca3af; font-size: 14px;">If we don't hear from you within 30 days, we'll contact your legacy contact.</p>
-            <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 32px 0;" />
-            <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-              Sent with care by <a href="https://mytimecapsule.app" style="color: #7c3aed;">TimeCapsule</a>
-            </p>
+    if (!userEmail) continue
+
+    // Send check-in reminder to user
+    await resend.emails.send({
+      from: 'TimeCapsule <hello@mytimecapsule.app>',
+      to: userEmail,
+      subject: '⏳ TimeCapsule Check-in — Are you still with us?',
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
+          <h1 style="color:#7c3aed;">⏳ TimeCapsule</h1>
+          <p style="font-size:18px;color:#374151;">Hi <strong>${userName}</strong>,</p>
+          <p style="color:#6b7280;">This is your 6-month check-in reminder. Your legacy capsules are safely stored.</p>
+          <p style="color:#6b7280;">Please confirm you're still with us:</p>
+          <div style="text-align:center;margin:32px 0;">
+            <a href="https://www.mytimecapsule.app/api/checkin-confirm?token=${checkin.checkin_token}"
+              style="background:#7c3aed;color:white;padding:16px 32px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:16px;">
+              ✅ Yes, I'm still here
+            </a>
           </div>
-        `
-      })
+          <p style="color:#9ca3af;font-size:14px;">If we don't hear from you within 30 days, we'll contact your legacy contacts.</p>
+          <hr style="border:none;border-top:1px solid #f3f4f6;margin:32px 0;" />
+          <p style="color:#9ca3af;font-size:12px;text-align:center;">TimeCapsule · Made with love for families</p>
+        </div>
+      `
+    })
 
-      // Mark as missed
+    // Mark as missed
+    await supabase
+      .from('checkins')
+      .update({ missed: true })
+      .eq('id', checkin.id)
+
+    // Get ALL legacy contacts for this user
+    const { data: legacyContacts } = await supabase
+      .from('legacy_contacts')
+      .select('*')
+      .eq('user_id', checkin.user_id)
+      .eq('status', 'active')
+      .order('priority', { ascending: true })
+
+    // Email ALL legacy contacts
+    if (legacyContacts && legacyContacts.length > 0) {
+      for (const contact of legacyContacts) {
+        await resend.emails.send({
+          from: 'TimeCapsule <hello@mytimecapsule.app>',
+          to: contact.contact_email,
+          subject: '⚠️ TimeCapsule — Legacy check-in missed',
+          html: `
+            <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
+              <h1 style="color:#7c3aed;">⏳ TimeCapsule</h1>
+              <p>Hi <strong>${contact.contact_name}</strong>,</p>
+              <p style="color:#6b7280;">
+                <strong>${userName}</strong> has missed their 6-month check-in on TimeCapsule.
+                They named you as a legacy contact.
+              </p>
+              <div style="background:#faf5ff;border-left:4px solid #7c3aed;padding:20px;border-radius:8px;margin:20px 0;">
+                <p style="color:#7c3aed;font-weight:bold;margin:0 0 8px;">If ${userName} has passed away:</p>
+                <p style="color:#6b7280;margin:0;">Please submit proof of passing using the button below. Our team will personally call you at <strong>${contact.contact_mobile}</strong> to verify before releasing any messages.</p>
+              </div>
+              <div style="text-align:center;margin:32px 0;">
+                <a href="https://www.mytimecapsule.app/legacy/submit-proof"
+                  style="background:#7c3aed;color:white;padding:16px 32px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:16px;">
+                  Submit Proof of Passing →
+                </a>
+              </div>
+              <p style="color:#9ca3af;font-size:14px;text-align:center;">
+                If ${userName} is still alive, no action is needed — they will be prompted to check in.
+              </p>
+              <hr style="border:none;border-top:1px solid #f3f4f6;margin:32px 0;" />
+              <p style="color:#9ca3af;font-size:12px;text-align:center;">TimeCapsule · Made with love for families</p>
+            </div>
+          `
+        })
+      }
+
+      // Mark legacy_alert_sent
       await supabase
         .from('checkins')
-        .update({ missed: true })
+        .update({ legacy_alert_sent: true })
         .eq('id', checkin.id)
-
-      processed++
     }
+
+    processed++
   }
 
   return new Response(`Processed ${processed} overdue checkins`, { status: 200 })

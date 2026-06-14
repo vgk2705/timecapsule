@@ -5,71 +5,124 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 })
 
-// Per capsule pricing in paise
+// Size tiers for video
+function getVideoSizeTier(fileSizeBytes) {
+  const mb = fileSizeBytes / (1024 * 1024)
+  if (mb <= 100) return 'small'
+  if (mb <= 500) return 'medium'
+  if (mb <= 2048) return 'large'
+  return 'too_large'
+}
+
+// Delivery year tier
+function getDeliveryTier(unlockDate) {
+  if (!unlockDate) return '5'
+  const years = Math.max(1, Math.ceil(
+    (new Date(unlockDate) - new Date()) / (1000 * 60 * 60 * 24 * 365)
+  ))
+  if (years <= 1) return '1'
+  if (years <= 5) return '5'
+  if (years <= 10) return '10'
+  return '10+'
+}
+
+// Pricing in paise (INR × 100)
 const PRICING = {
-  INR: {
-    audio: {
-      '1': 4900,    // ₹49 — within 1 year
-      '5': 9900,    // ₹99 — 1-5 years
-      '10': 19900,  // ₹199 — 5-10 years
-      '10+': 39900, // ₹399 — 10+ years
-    },
-    video: {
-      '1': 14900,   // ₹149
-      '5': 29900,   // ₹299
-      '10': 49900,  // ₹499
+  audio: {
+    '1': 4900,    // ₹49
+    '5': 9900,    // ₹99
+    '10': 19900,  // ₹199
+    '10+': 39900, // ₹399
+  },
+  video: {
+    small: { // up to 100MB
+      '1': 14900,  // ₹149
+      '5': 29900,  // ₹299
+      '10': 49900, // ₹499
       '10+': 99900, // ₹999
+    },
+    medium: { // 101MB - 500MB
+      '1': 29900,   // ₹299
+      '5': 59900,   // ₹599
+      '10': 99900,  // ₹999
+      '10+': 199900, // ₹1,999
+    },
+    large: { // 501MB - 2GB
+      '1': 59900,   // ₹599
+      '5': 119900,  // ₹1,199
+      '10': 199900, // ₹1,999
+      '10+': 399900, // ₹3,999
     }
   }
 }
 
-function getPriceKey(deliveryYears) {
-  if (deliveryYears <= 1) return '1'
-  if (deliveryYears <= 5) return '5'
-  if (deliveryYears <= 10) return '10'
-  return '10+'
-}
+function getPrice(mediaType, fileSizeBytes, unlockDate) {
+  const deliveryTier = getDeliveryTier(unlockDate)
+  const years = Math.max(1, Math.ceil(
+    (new Date(unlockDate || Date.now() + 5 * 365 * 24 * 60 * 60 * 1000) - new Date()) /
+    (1000 * 60 * 60 * 24 * 365)
+  ))
 
-function getAmount(mediaType, deliveryYears, currency = 'INR') {
-  const priceKey = getPriceKey(deliveryYears)
-  return PRICING[currency]?.[mediaType]?.[priceKey] || PRICING.INR[mediaType]['5']
+  if (mediaType === 'audio') {
+    return {
+      amount: PRICING.audio[deliveryTier],
+      deliveryTier,
+      years,
+      sizeTier: null,
+      label: `Audio · ${years} year${years > 1 ? 's' : ''} storage`,
+    }
+  }
+
+  if (mediaType === 'video') {
+    const sizeTier = getVideoSizeTier(fileSizeBytes)
+    if (sizeTier === 'too_large') {
+      return { error: 'Video file too large. Maximum size is 2GB.' }
+    }
+    return {
+      amount: PRICING.video[sizeTier][deliveryTier],
+      deliveryTier,
+      years,
+      sizeTier,
+      label: `Video · ${sizeTier === 'small' ? 'up to 100MB' : sizeTier === 'medium' ? '101-500MB' : '501MB-2GB'} · ${years} year${years > 1 ? 's' : ''} storage`,
+    }
+  }
+
+  return { error: 'Invalid media type' }
 }
 
 export async function POST(request) {
   try {
-    const { userId, mediaType, unlockDate, currency = 'INR' } = await request.json()
+    const { userId, mediaType, unlockDate, fileSizeBytes } = await request.json()
 
-    if (!userId || !mediaType || !unlockDate) {
+    if (!userId || !mediaType) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Calculate delivery years from today
-    const today = new Date()
-    const delivery = new Date(unlockDate)
-    const deliveryYears = Math.max(1, Math.ceil((delivery - today) / (1000 * 60 * 60 * 24 * 365)))
-
-    const amount = getAmount(mediaType, deliveryYears, currency)
-    const priceKey = getPriceKey(deliveryYears)
+    const pricing = getPrice(mediaType, fileSizeBytes || 0, unlockDate)
+    if (pricing.error) {
+      return Response.json({ error: pricing.error }, { status: 400 })
+    }
 
     const order = await razorpay.orders.create({
-      amount,
+      amount: pricing.amount,
       currency: 'INR',
       notes: {
         user_id: userId,
         media_type: mediaType,
-        delivery_years: deliveryYears,
+        delivery_years: pricing.years,
+        size_tier: pricing.sizeTier || 'na',
         plan_type: 'per_capsule',
-        price_tier: priceKey,
       }
     })
 
     return Response.json({
       orderId: order.id,
-      amount,
-      deliveryYears,
-      priceKey,
-      mediaType,
-      displayPrice: `₹${amount / 100}`,
+      amount: pricing.amount,
+      displayPrice: `₹${pricing.amount / 100}`,
+      deliveryYears: pricing.years,
+      deliveryTier: pricing.deliveryTier,
+      sizeTier: pricing.sizeTier,
+      label: pricing.label,
     })
 
   } catch (error) {
