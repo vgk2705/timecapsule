@@ -303,7 +303,7 @@ export default function Dashboard() {
             <div>
               <p className="text-purple-800 font-bold text-sm">👻 Leave messages for after you're gone</p>
               <p className="text-purple-600 text-xs mt-0.5">
-                One-time Legacy plan — from {isIndia ? '₹1,999' : '€59'} based on your age
+                One-time Legacy plan — from {isIndia ? '₹1,999' : '€19'} based on your age
               </p>
             </div>
             <a href="/legacy-setup" className="bg-purple-600 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-purple-700 transition flex-shrink-0">
