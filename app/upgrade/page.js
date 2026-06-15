@@ -258,10 +258,10 @@ export default function UpgradePage() {
              <p className="text-xs text-gray-500 mb-3">Unlimited words · No storage limit</p>
              <div className="space-y-2 text-sm">
                 {[
-                  { label: 'Deliver within 1 year', inr: '₹19', eur: '€0.49' },
-                  { label: 'Deliver in 1-5 years', inr: '₹29', eur: '€0.99' },
-                  { label: 'Deliver in 5-10 years', inr: '₹49', eur: '€1.99' },
-                  { label: 'Deliver in 10+ years', inr: '₹99', eur: '€2.99' },
+                  { label: 'Deliver within 1 year', inr: '₹19', eur: '€0.29' },
+                  { label: 'Deliver in 1-5 years', inr: '₹29', eur: '€0.49' },
+                  { label: 'Deliver in 5-10 years', inr: '₹49', eur: '€0.99' },
+                  { label: 'Deliver in 10+ years', inr: '₹99', eur: '€1.99' },
                  ].map((row, i) => (
                    <div key={i} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
                     <span className="text-gray-500">{row.label}</span>

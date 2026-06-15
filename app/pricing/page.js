@@ -209,7 +209,7 @@ export default function PricingPage() {
               <li className="text-gray-600">
                 📝 Text — pay per capsule
                 <span className="ml-1 text-xs text-amber-600 font-semibold">
-                  {isIndia ? 'from ₹19' : 'from €0.49'}
+                  {isIndia ? 'from ₹19' : 'from €0.29'}
                 </span>
                 <span className="ml-1 text-xs text-gray-400">unlimited words</span>
               </li>
@@ -352,10 +352,10 @@ export default function PricingPage() {
               {/* ✅ Updated grid — now includes text pricing rows */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: '📝 Text · 1yr', inr: '₹19', eur: '€0.49', note: 'unlimited words' },
-                  { label: '📝 Text · 5yr', inr: '₹29', eur: '€0.99', note: 'unlimited words' },
-                  { label: '📝 Text · 10yr', inr: '₹49', eur: '€1.99', note: 'unlimited words' },
-                  { label: '📝 Text · 10yr+', inr: '₹99', eur: '€2.99', note: 'unlimited words' },
+                  { label: '📝 Text · 1yr', inr: '₹19', eur: '€0.29', note: 'unlimited words' },
+                  { label: '📝 Text · 5yr', inr: '₹29', eur: '€0.49', note: 'unlimited words' },
+                  { label: '📝 Text · 10yr', inr: '₹49', eur: '€0.99', note: 'unlimited words' },
+                  { label: '📝 Text · 10yr+', inr: '₹99', eur: '€1.99', note: 'unlimited words' },
                   { label: '🎵 Audio · 1yr', inr: '₹49', eur: '€1.49' },
                   { label: '🎵 Audio · 5yr', inr: '₹99', eur: '€2.99' },
                   { label: '🎵 Audio · 10yr', inr: '₹199', eur: '€5.99' },

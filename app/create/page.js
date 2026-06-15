@@ -43,7 +43,7 @@ const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
 // Per capsule pricing (display only — actual price comes from API)
 const TEXT_PRICING = {
   INR: { '1': '₹19', '5': '₹29', '10': '₹49', '10+': '₹99' },
-  EUR: { '1': '€0.49', '5': '€0.99', '10': '€1.99', '10+': '€2.99' },
+  EUR: { '1': '€0.29', '5': '€0.49', '10': '€0.99', '10+': '€1.99' },
 }
 const AUDIO_PRICING = {
   INR: { '1': '₹49', '5': '₹99', '10': '₹199', '10+': '₹399' },
@@ -449,10 +449,10 @@ export default function CreateCapsule() {
               <p className="text-sm text-gray-500 mb-1">Unlimited words · No subscription needed</p>
               <div className="grid grid-cols-2 gap-2 my-3 text-xs">
                 {[
-                  { label: '1 year delivery', inr: '₹19', eur: '€0.49' },
-                  { label: '1-5 years', inr: '₹29', eur: '€0.99' },
-                  { label: '5-10 years', inr: '₹49', eur: '€1.99' },
-                  { label: '10+ years', inr: '₹99', eur: '€2.99' },
+                  { label: '1 year delivery', inr: '₹19', eur: '€0.29' },
+                  { label: '1-5 years', inr: '₹29', eur: '€0.49' },
+                  { label: '5-10 years', inr: '₹49', eur: '€0.99' },
+                  { label: '10+ years', inr: '₹99', eur: '€1.99' },
                 ].map((r, i) => (
                   <div key={i} className="flex justify-between bg-amber-50 rounded-lg px-2 py-1.5">
                     <span className="text-gray-500">{r.label}</span>
