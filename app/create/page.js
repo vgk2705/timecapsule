@@ -37,22 +37,26 @@ function calculateUnlockDate(milestone, dob) {
   return ''
 }
 
-const PER_CAPSULE_PRICING = {
-  INR: {
-    audio: { '1': 49, '5': 99, '10': 199, '10+': 399 },
-    video: { '1': 149, '5': 299, '10': 499, '10+': 999 },
-  },
-  EUR: {
-    audio: { '1': 1.49, '5': 2.99, '10': 5.99, '10+': 11.99 },
-    video: { '1': 4.99, '5': 8.99, '10': 14.99, '10+': 29.99 },
-  }
+// Tomorrow date string for min date
+const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+
+// Per capsule pricing (display only — actual price comes from API)
+const TEXT_PRICING = {
+  INR: { '1': '₹19', '5': '₹29', '10': '₹49', '10+': '₹99' },
+  EUR: { '1': '€0.49', '5': '€0.99', '10': '€1.99', '10+': '€2.99' },
+}
+const AUDIO_PRICING = {
+  INR: { '1': '₹49', '5': '₹99', '10': '₹199', '10+': '₹399' },
+  EUR: { '1': '€1.49', '5': '€2.99', '10': '€5.99', '10+': '€11.99' },
+}
+const VIDEO_PRICING = {
+  INR: { '1': '₹149', '5': '₹299', '10': '₹499', '10+': '₹999' },
+  EUR: { '1': '€4.99', '5': '€8.99', '10': '€14.99', '10+': '€29.99' },
 }
 
 function getDeliveryYears(unlockDate) {
   if (!unlockDate) return 5
-  const today = new Date()
-  const delivery = new Date(unlockDate)
-  return Math.max(1, Math.ceil((delivery - today) / (1000 * 60 * 60 * 24 * 365)))
+  return Math.max(1, Math.ceil((new Date(unlockDate) - new Date()) / (1000 * 60 * 60 * 24 * 365)))
 }
 
 function getPriceTier(years) {
@@ -62,15 +66,13 @@ function getPriceTier(years) {
   return '10+'
 }
 
-function getPerCapsulePrice(mediaType, unlockDate, isIndia) {
+function getDisplayPrice(mediaType, unlockDate, isIndia) {
   const currency = isIndia ? 'INR' : 'EUR'
-  const years = getDeliveryYears(unlockDate)
-  const tier = getPriceTier(years)
-  const price = PER_CAPSULE_PRICING[currency][mediaType][tier]
-  return { price, symbol: isIndia ? '₹' : '€', tier, years, display: `${isIndia ? '₹' : '€'}${price}` }
+  const tier = getPriceTier(getDeliveryYears(unlockDate))
+  const map = mediaType === 'text' ? TEXT_PRICING : mediaType === 'audio' ? AUDIO_PRICING : VIDEO_PRICING
+  return map[currency][tier]
 }
 
-// Email validation
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 }
@@ -96,8 +98,8 @@ export default function CreateCapsule() {
   const [videoFile, setVideoFile] = useState(null)
   const [userId, setUserId] = useState(null)
   const [perCapsulePaying, setPerCapsulePaying] = useState(false)
-  const [emailError, setEmailError] = useState('')
   const [recipientEmailError, setRecipientEmailError] = useState('')
+  const [dateError, setDateError] = useState('')
 
   // Additional recipients
   const [additionalRecipients, setAdditionalRecipients] = useState([])
@@ -170,9 +172,7 @@ export default function CreateCapsule() {
         setForm(parsed)
         if (savedStep) setStep(parseInt(savedStep))
         if (savedMessageType) setMessageType(savedMessageType)
-        if (parsed.message) {
-          setWordCount(parsed.message.trim() === '' ? 0 : parsed.message.trim().split(/\s+/).length)
-        }
+        if (parsed.message) setWordCount(parsed.message.trim() === '' ? 0 : parsed.message.trim().split(/\s+/).length)
         sessionStorage.removeItem('capsuleForm')
         sessionStorage.removeItem('capsuleStep')
         sessionStorage.removeItem('capsuleMessageType')
@@ -189,10 +189,13 @@ export default function CreateCapsule() {
       setWordCount(e.target.value.trim() === '' ? 0 : e.target.value.trim().split(/\s+/).length)
     }
     if (e.target.name === 'recipientEmail') {
-      if (e.target.value && !isValidEmail(e.target.value)) {
-        setRecipientEmailError('Please enter a valid email (e.g. name@example.com)')
+      setRecipientEmailError(e.target.value && !isValidEmail(e.target.value) ? 'Please enter a valid email (e.g. name@example.com)' : '')
+    }
+    if (e.target.name === 'unlockDate') {
+      if (e.target.value && e.target.value <= new Date().toISOString().split('T')[0]) {
+        setDateError('Please select a future date')
       } else {
-        setRecipientEmailError('')
+        setDateError('')
       }
     }
     if (e.target.name === 'recipientDob' || e.target.name === 'milestone') {
@@ -212,25 +215,19 @@ export default function CreateCapsule() {
     } else {
       updated.unlockDate = ''
     }
+    setDateError('')
     setForm(updated)
   }
 
-  // ✅ FIX 2 — Switch message type with confirmation if content exists
   const handleMessageTypeSwitch = (newType) => {
     if (newType === messageType) return
-
-    // Check if current type has content
     const hasTextContent = messageType === 'text' && form.message.trim().length > 0
     const hasAudioContent = messageType === 'audio' && audioFile
     const hasVideoContent = messageType === 'video' && videoFile
-
     if (hasTextContent || hasAudioContent || hasVideoContent) {
       const contentType = messageType === 'text' ? 'text message' : messageType === 'audio' ? 'audio file' : 'video file'
-      const confirmed = confirm(`You have a ${contentType} ready. Switching will clear it. Continue?`)
-      if (!confirmed) return
+      if (!confirm(`You have a ${contentType} ready. Switching will clear it. Continue?`)) return
     }
-
-    // Clear previous content
     if (messageType === 'text') setForm(f => ({ ...f, message: '' }))
     if (messageType === 'audio') setAudioFile(null)
     if (messageType === 'video') setVideoFile(null)
@@ -247,19 +244,11 @@ export default function CreateCapsule() {
 
   const handleAddRecipient = () => {
     if (!newRecipient.name || !newRecipient.email) return
-    if (!isValidEmail(newRecipient.email)) {
-      setNewRecipientEmailError('Please enter a valid email address')
-      return
+    if (!isValidEmail(newRecipient.email)) { setNewRecipientEmailError('Please enter a valid email address'); return }
+    if (newRecipient.email === form.recipientEmail || additionalRecipients.some(r => r.email === newRecipient.email)) {
+      setNewRecipientEmailError('This email is already added'); return
     }
-    if (newRecipient.email === form.recipientEmail ||
-      additionalRecipients.some(r => r.email === newRecipient.email)) {
-      setNewRecipientEmailError('This email is already added')
-      return
-    }
-    if (additionalRecipients.length >= 9) {
-      alert('Maximum 10 recipients total')
-      return
-    }
+    if (additionalRecipients.length >= 9) { alert('Maximum 10 recipients total'); return }
     setAdditionalRecipients([...additionalRecipients, { ...newRecipient }])
     setNewRecipient({ name: '', email: '' })
     setNewRecipientEmailError('')
@@ -273,29 +262,24 @@ export default function CreateCapsule() {
   const uploadFileToR2 = async (file, user) => {
     setUploadProgress('Preparing upload...')
     const urlRes = await fetch('/api/get-upload-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId: user.id, fileType: messageType,
-        fileName: file.name, fileSize: file.size,
+        userId: user.id, fileType: messageType, fileName: file.name, fileSize: file.size,
         contentType: file.type || (messageType === 'video' ? 'video/mp4' : 'audio/mpeg'),
         plan: isLegacyMode ? 'legacy' : currentPlan,
       }),
     })
     const urlData = await urlRes.json()
     if (urlData.error) throw new Error(urlData.error)
-
     setUploadProgress('Uploading your media file...')
     const uploadRes = await fetch(urlData.presignedUrl, {
       method: 'PUT', body: file,
       headers: { 'Content-Type': file.type || (messageType === 'video' ? 'video/mp4' : 'audio/mpeg') },
     })
     if (!uploadRes.ok) throw new Error('Upload to cloud storage failed')
-
     setUploadProgress('Confirming upload...')
     await fetch('/api/confirm-upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: user.id, fileType: messageType, fileSize: file.size }),
     })
     return { url: urlData.publicUrl, fileName: file.name, fileSize: file.size }
@@ -304,27 +288,18 @@ export default function CreateCapsule() {
   const saveCapsule = async (user, mediaUrl, mediaFileName, mediaFileSize, paymentId = null, paymentAmount = null, paymentCurrency = null) => {
     setUploadProgress('Sealing your capsule...')
     const insertData = {
-      sender_name: form.senderName,
-      relationship: form.relationship,
-      recipient_name: form.recipientName,
-      recipient_email: form.recipientEmail,
-      message: messageType === 'text'
-        ? form.message
-        : `[${messageType === 'audio' ? 'Audio' : 'Video'} message: ${mediaFileName || 'file'}]`,
+      sender_name: form.senderName, relationship: form.relationship,
+      recipient_name: form.recipientName, recipient_email: form.recipientEmail,
+      message: messageType === 'text' ? form.message : `[${messageType === 'audio' ? 'Audio' : 'Video'} message: ${mediaFileName || 'file'}]`,
       unlock_date: isLegacyMode ? null : form.unlockDate,
-      status: 'locked',
-      is_legacy: isLegacyMode,
+      status: 'locked', is_legacy: isLegacyMode,
       media_type: messageType !== 'text' ? messageType : null,
-      media_url: mediaUrl,
-      media_file_name: mediaFileName,
-      media_file_size: mediaFileSize,
+      media_url: mediaUrl, media_file_name: mediaFileName, media_file_size: mediaFileSize,
       recipients: currentPlan === 'forever' && additionalRecipients.length > 0 ? additionalRecipients : [],
     }
     if (user) insertData.sender_id = user.id
-
     const { data, error } = await supabase.from('capsules').insert(insertData).select()
     if (error) throw new Error('Failed to save capsule')
-
     if (paymentId && data?.[0]?.id) {
       await supabase.from('capsule_payments').insert({
         user_id: user.id, capsule_id: data[0].id,
@@ -359,25 +334,32 @@ export default function CreateCapsule() {
     }
   }
 
-  const handlePerCapsulePayment = async () => {
-    const fileToUpload = messageType === 'audio' ? audioFile : videoFile
-    if (!fileToUpload) { alert(`Please select a ${messageType} file first`); return }
+  // Unified per-capsule payment handler (text + audio + video)
+  const handlePerCapsulePayment = async (type) => {
+    const fileToUpload = type === 'audio' ? audioFile : type === 'video' ? videoFile : null
+    if ((type === 'audio' || type === 'video') && !fileToUpload) {
+      alert(`Please select a ${type} file first`); return
+    }
+    if (type === 'text' && !form.message.trim()) {
+      alert('Please write your message first'); return
+    }
     setPerCapsulePaying(true)
     try {
       const res = await fetch('/api/razorpay-create-capsule-order', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId, mediaType: messageType,
+          userId, mediaType: type,
           unlockDate: form.unlockDate || new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString(),
-          fileSizeBytes: fileToUpload.size, currency: 'INR',
+          fileSizeBytes: fileToUpload?.size || 0, currency: 'INR',
         })
       })
       const orderData = await res.json()
       if (orderData.error) throw new Error(orderData.error)
+
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: orderData.amount, currency: 'INR', order_id: orderData.orderId,
-        name: 'TimeCapsule', description: orderData.label || `${messageType} capsule`,
+        name: 'TimeCapsule', description: orderData.label || `${type} capsule`,
         image: 'https://www.mytimecapsule.app/favicon.ico',
         prefill: { email: (await supabase.auth.getUser()).data.user?.email || '' },
         theme: { color: '#f59e0b' },
@@ -385,12 +367,16 @@ export default function CreateCapsule() {
           setLoading(true); setPerCapsulePaying(false)
           const { data: { user } } = await supabase.auth.getUser()
           try {
-            const result = await uploadFileToR2(fileToUpload, user)
-            await saveCapsule(user, result.url, result.fileName, result.fileSize,
+            let mediaUrl = null, mediaFileName = null, mediaFileSize = null
+            if (fileToUpload) {
+              const result = await uploadFileToR2(fileToUpload, user)
+              mediaUrl = result.url; mediaFileName = result.fileName; mediaFileSize = result.fileSize
+            }
+            await saveCapsule(user, mediaUrl, mediaFileName, mediaFileSize,
               response.razorpay_payment_id, orderData.amount / 100, 'INR')
             setLoading(false); setUploadProgress(''); setSubmitted(true)
           } catch (err) {
-            alert('Payment successful but upload failed. Contact support with payment ID: ' + response.razorpay_payment_id)
+            alert('Payment successful but saving failed. Contact support with payment ID: ' + response.razorpay_payment_id)
             setLoading(false); setUploadProgress('')
           }
         },
@@ -406,15 +392,9 @@ export default function CreateCapsule() {
 
   const isSealDisabled = () => {
     if (loading) return true
-    if (messageType === 'text') return !form.message || (wordCount > 5000 && !isPaid && !isLegacyMode)
-    if (messageType === 'audio') {
-      if (!isPaid && !isLegacyMode) return true
-      return !audioFile
-    }
-    if (messageType === 'video') {
-      if (!isPaid && !isLegacyMode) return true
-      return !videoFile
-    }
+    if (messageType === 'text') return !form.message
+    if (messageType === 'audio') return !audioFile
+    if (messageType === 'video') return !videoFile
     return true
   }
 
@@ -428,7 +408,6 @@ export default function CreateCapsule() {
     progress: 'bg-amber-500', tab: 'text-amber-600',
   }
 
-  // ── LIMIT SCREENS ──────────────────────────────────────────
   if (legacyLimitReached) return (
     <div className="min-h-screen bg-purple-50 flex flex-col">
       <div className="flex-1 flex items-center justify-center px-4">
@@ -454,20 +433,52 @@ export default function CreateCapsule() {
     </div>
   )
 
+  // ✅ FIX — limitReached now shows pay per text capsule option instead of just upgrade
   if (limitReached) return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
       <div className="flex-1 flex items-center justify-center px-4">
-        <div className="text-center p-6 md:p-10 max-w-md">
-          <div className="text-6xl mb-6">🔒</div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Free limit reached</h1>
-          <p className="text-gray-500 mb-2">You've used all <strong>3 free capsules</strong>.</p>
-          <p className="text-gray-500 mb-8">Upgrade to create unlimited capsules + unlock audio & video messages.</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <a href="/upgrade" className="bg-amber-500 text-white px-6 py-3 rounded-full hover:bg-amber-600 transition text-center font-semibold">
-              Upgrade Now {isIndia ? '— ₹99/mo' : '— €2.99/mo'}
-            </a>
-            <a href="/dashboard" className="border border-gray-300 text-gray-600 px-6 py-3 rounded-full hover:border-gray-400 transition text-center">Back to Dashboard</a>
+        <div className="text-center p-6 md:p-10 max-w-lg">
+          <div className="text-6xl mb-6">📝</div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">3 free capsules used</h1>
+          <p className="text-gray-500 mb-6">You've used all 3 free text capsules. Choose how to continue:</p>
+
+          <div className="grid grid-cols-1 gap-4 mb-6 text-left">
+            {/* Pay per text capsule */}
+            <div className="bg-white border-2 border-amber-400 rounded-2xl p-5">
+              <p className="font-bold text-gray-800 mb-1">📝 Pay per text capsule</p>
+              <p className="text-sm text-gray-500 mb-1">Unlimited words · No subscription needed</p>
+              <div className="grid grid-cols-2 gap-2 my-3 text-xs">
+                {[
+                  { label: '1 year delivery', inr: '₹19', eur: '€0.49' },
+                  { label: '1-5 years', inr: '₹29', eur: '€0.99' },
+                  { label: '5-10 years', inr: '₹49', eur: '€1.99' },
+                  { label: '10+ years', inr: '₹99', eur: '€2.99' },
+                ].map((r, i) => (
+                  <div key={i} className="flex justify-between bg-amber-50 rounded-lg px-2 py-1.5">
+                    <span className="text-gray-500">{r.label}</span>
+                    <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400">⚠️ No refund if capsule deleted</p>
+              <a href="/create"
+                className="mt-3 block w-full text-center bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-semibold text-sm transition">
+                Create text capsule →
+              </a>
+            </div>
+
+            {/* Subscribe */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="font-bold text-gray-800 mb-1">📅 Subscribe for unlimited</p>
+              <p className="text-sm text-gray-500 mb-3">Unlimited text + audio + video capsules</p>
+              <a href="/upgrade"
+                className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white py-2.5 rounded-xl font-semibold text-sm transition">
+                See plans — {isIndia ? 'from ₹99/mo' : 'from €2.99/mo'}
+              </a>
+            </div>
           </div>
+
+          <a href="/dashboard" className="text-sm text-gray-400 hover:text-gray-600">← Back to dashboard</a>
         </div>
       </div>
       <footer className="text-center py-6 text-gray-400 text-sm px-4">
@@ -529,7 +540,6 @@ export default function CreateCapsule() {
     </div>
   )
 
-  // ── MAIN RENDER ──────────────────────────────────────────
   return (
     <div className={`min-h-screen ${accentClasses.bg} flex flex-col`}>
       <div className="flex-1 py-8 md:py-12 px-4 md:px-6">
@@ -571,7 +581,6 @@ export default function CreateCapsule() {
                 </p>
                 <div className="space-y-5">
 
-                  {/* Sender name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Your name <span className="text-red-500">*</span></label>
                     <input name="senderName" value={form.senderName} onChange={handleChange}
@@ -579,13 +588,11 @@ export default function CreateCapsule() {
                       placeholder="e.g. Gopala" />
                   </div>
 
-                  {/* Relationship */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">Your relationship to recipient <span className="text-red-500">*</span></label>
                     <div className="grid grid-cols-4 md:grid-cols-5 gap-2">
                       {RELATIONSHIPS.map(r => (
-                        <button key={r.id} type="button"
-                          onClick={() => setForm({ ...form, relationship: r.id })}
+                        <button key={r.id} type="button" onClick={() => setForm({ ...form, relationship: r.id })}
                           className={`flex flex-col items-center p-1.5 md:p-2 rounded-xl border-2 transition text-center ${
                             form.relationship === r.id
                               ? isLegacyMode ? 'border-purple-500 bg-purple-50' : 'border-amber-500 bg-amber-50'
@@ -598,7 +605,6 @@ export default function CreateCapsule() {
                     </div>
                   </div>
 
-                  {/* Recipient name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Their name <span className="text-red-500">*</span></label>
                     <input name="recipientName" value={form.recipientName} onChange={handleChange}
@@ -606,20 +612,15 @@ export default function CreateCapsule() {
                       placeholder="e.g. Karsanvidhun" />
                   </div>
 
-                  {/* ✅ FIX 4 — Recipient email with validation */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Their email <span className="text-red-500">*</span></label>
                     <input name="recipientEmail" value={form.recipientEmail} onChange={handleChange} type="email"
-                      className={`w-full border rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 ${accentClasses.ring} ${
-                        recipientEmailError ? 'border-red-300 bg-red-50' : 'border-gray-200'
-                      }`}
+                      className={`w-full border rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 ${accentClasses.ring} ${recipientEmailError ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
                       placeholder="their@email.com" />
-                    {recipientEmailError && (
-                      <p className="text-xs text-red-500 mt-1">{recipientEmailError}</p>
-                    )}
+                    {recipientEmailError && <p className="text-xs text-red-500 mt-1">{recipientEmailError}</p>}
                   </div>
 
-                  {/* ✅ Additional recipients — Forever plan only */}
+                  {/* Additional recipients — Forever plan only */}
                   {currentPlan === 'forever' && !isLegacyMode && (
                     <div className="border border-amber-200 rounded-xl p-4 bg-amber-50">
                       <div className="flex items-center justify-between mb-2">
@@ -634,9 +635,7 @@ export default function CreateCapsule() {
                           </button>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mb-3">
-                        Same message delivered to multiple people. ({1 + additionalRecipients.length}/10 recipients)
-                      </p>
+                      <p className="text-xs text-gray-500 mb-3">Same message delivered to multiple people. ({1 + additionalRecipients.length}/10 recipients)</p>
                       {additionalRecipients.length > 0 && (
                         <div className="space-y-2 mb-3">
                           {additionalRecipients.map((r, i) => (
@@ -645,8 +644,7 @@ export default function CreateCapsule() {
                                 <span className="text-sm text-gray-700 font-medium">{r.name}</span>
                                 <span className="text-xs text-gray-400 ml-2">{r.email}</span>
                               </div>
-                              <button type="button" onClick={() => handleRemoveRecipient(i)}
-                                className="text-xs text-red-400 hover:text-red-600 transition font-medium">Remove</button>
+                              <button type="button" onClick={() => handleRemoveRecipient(i)} className="text-xs text-red-400 hover:text-red-600 transition font-medium">Remove</button>
                             </div>
                           ))}
                         </div>
@@ -660,19 +658,11 @@ export default function CreateCapsule() {
                           <input type="email" value={newRecipient.email}
                             onChange={e => {
                               setNewRecipient({ ...newRecipient, email: e.target.value })
-                              if (e.target.value && !isValidEmail(e.target.value)) {
-                                setNewRecipientEmailError('Please enter a valid email')
-                              } else {
-                                setNewRecipientEmailError('')
-                              }
+                              setNewRecipientEmailError(e.target.value && !isValidEmail(e.target.value) ? 'Please enter a valid email' : '')
                             }}
-                            className={`w-full border rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300 ${
-                              newRecipientEmailError ? 'border-red-300 bg-red-50' : 'border-gray-200'
-                            }`}
+                            className={`w-full border rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300 ${newRecipientEmailError ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
                             placeholder="Recipient email *" />
-                          {newRecipientEmailError && (
-                            <p className="text-xs text-red-500">{newRecipientEmailError}</p>
-                          )}
+                          {newRecipientEmailError && <p className="text-xs text-red-500">{newRecipientEmailError}</p>}
                           <div className="flex gap-2">
                             <button type="button" onClick={handleAddRecipient}
                               disabled={!newRecipient.name || !newRecipient.email || !!newRecipientEmailError}
@@ -693,11 +683,11 @@ export default function CreateCapsule() {
                     </div>
                   )}
 
-                  {/* DOB — normal mode only */}
                   {!isLegacyMode && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Their date of birth <span className="text-red-500">*</span></label>
                       <input name="recipientDob" value={form.recipientDob} onChange={handleChange} type="date"
+                        max={new Date().toISOString().split('T')[0]}
                         className={`w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 ${accentClasses.ring}`} />
                     </div>
                   )}
@@ -705,10 +695,7 @@ export default function CreateCapsule() {
                   <p className="text-xs text-gray-400"><span className="text-red-500">*</span> Required fields</p>
 
                   <button onClick={() => setStep(2)}
-                    disabled={
-                      !form.senderName || !form.relationship || !form.recipientName ||
-                      !form.recipientEmail || !isValidEmail(form.recipientEmail)
-                    }
+                    disabled={!form.senderName || !form.relationship || !form.recipientName || !form.recipientEmail || !isValidEmail(form.recipientEmail)}
                     className={`w-full ${accentClasses.btn} disabled:opacity-40 text-white py-4 rounded-xl font-medium transition`}>
                     Next →
                   </button>
@@ -725,9 +712,7 @@ export default function CreateCapsule() {
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   {MILESTONES.map(m => (
                     <button key={m.id} onClick={() => handleMilestone(m.id)}
-                      className={`p-3 md:p-4 rounded-xl border-2 text-left transition ${
-                        form.milestone === m.id ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'
-                      }`}>
+                      className={`p-3 md:p-4 rounded-xl border-2 text-left transition ${form.milestone === m.id ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'}`}>
                       <div className="text-xl md:text-2xl mb-1">{m.emoji}</div>
                       <div className="text-xs md:text-sm font-medium text-gray-800">{m.label}</div>
                       <div className="text-xs text-gray-400 hidden md:block">{m.description}</div>
@@ -744,14 +729,28 @@ export default function CreateCapsule() {
                 {['graduation','custom'].includes(form.milestone) && (
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Choose the date <span className="text-red-500">*</span></label>
+                    {/* ✅ FIX — min date is tomorrow */}
                     <input name="unlockDate" value={form.unlockDate} onChange={handleChange} type="date"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                      min={tomorrow}
+                      className={`w-full border rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300 ${dateError ? 'border-red-300' : 'border-gray-200'}`} />
+                    {dateError && <p className="text-xs text-red-500 mt-1">{dateError}</p>}
                   </div>
                 )}
                 <div className="flex gap-3">
                   <button onClick={() => setStep(1)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
-                  <button onClick={() => setStep(3)} disabled={!form.milestone || !form.unlockDate}
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm">Next →</button>
+                  {/* ✅ FIX — validate date not in past before proceeding */}
+                  <button
+                    onClick={() => {
+                      if (form.unlockDate && form.unlockDate <= new Date().toISOString().split('T')[0]) {
+                        setDateError('Please select a future date')
+                        return
+                      }
+                      setStep(3)
+                    }}
+                    disabled={!form.milestone || !form.unlockDate || !!dateError}
+                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm">
+                    Next →
+                  </button>
                 </div>
               </div>
             )}
@@ -775,7 +774,6 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Recipients summary */}
                 {additionalRecipients.length > 0 && !isLegacyMode && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-700">
                     <p className="font-semibold mb-1">👑 Delivering to {1 + additionalRecipients.length} recipients:</p>
@@ -784,7 +782,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* ✅ FIX 2 — Message type tabs with handleMessageTypeSwitch */}
+                {/* Message type tabs */}
                 <div className="flex gap-1 md:gap-2 mb-5 bg-gray-100 p-1 rounded-xl">
                   {[
                     { id: 'text', emoji: '📝', label: 'Text' },
@@ -801,38 +799,79 @@ export default function CreateCapsule() {
                   ))}
                 </div>
 
-                {/* ── TEXT ── */}
-                {messageType === 'text' && (
+                {/* ── TEXT — paid/legacy users (unlimited) ── */}
+                {messageType === 'text' && (isPaid || isLegacyMode) && (
                   <div className="space-y-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Your message <span className="text-red-500">*</span></label>
                     <textarea name="message" value={form.message} onChange={handleChange} rows={7}
                       className={`w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 ${accentClasses.ring}`}
                       placeholder={isLegacyMode ? `Write your final message to ${form.recipientName}...` : `Write something from your heart to ${form.recipientName}...`} />
-                    <div className="flex justify-between items-center">
-                      <p className={`text-xs ${wordCount > 5000 && !isPaid && !isLegacyMode ? 'text-red-500' : 'text-gray-400'}`}>
-                        {isPaid || isLegacyMode ? `${wordCount} words` : `${wordCount} / 5,000 words`}
-                      </p>
-                      {wordCount > 5000 && !isPaid && !isLegacyMode && (
-                        <a href="/upgrade" className="text-xs text-red-500 underline">Upgrade for unlimited</a>
-                      )}
+                    <p className="text-xs text-gray-400">{wordCount} words · Unlimited</p>
+                  </div>
+                )}
+
+                {/* ── TEXT — free users (with 5000 limit OR pay per capsule) ── */}
+                {messageType === 'text' && !isPaid && !isLegacyMode && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Your message <span className="text-red-500">*</span></label>
+                      <textarea name="message" value={form.message} onChange={handleChange} rows={7}
+                        className={`w-full border rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 ${accentClasses.ring} ${wordCount > 5000 ? 'border-red-300' : 'border-gray-200'}`}
+                        placeholder={`Write something from your heart to ${form.recipientName}...`} />
+                      <div className="flex justify-between items-center mt-1">
+                        <p className={`text-xs ${wordCount > 5000 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                          {wordCount} / 5,000 words {wordCount > 5000 ? '— over limit!' : ''}
+                        </p>
+                        {capsuleCount < 3 && (
+                          <p className="text-xs text-gray-400">{capsuleCount}/3 free capsules used</p>
+                        )}
+                      </div>
                     </div>
+
+                    {/* If over 5000 words — show pay per capsule to unlock unlimited */}
+                    {wordCount > 5000 && (
+                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Over 5,000 words — unlock unlimited</p>
+                        </div>
+                        <div className="p-4 border-b border-gray-100">
+                          <p className="font-bold text-gray-800 text-sm">💳 Pay for this capsule — unlimited words</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            One-time ·{' '}
+                            {form.unlockDate
+                              ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getDisplayPrice('text', form.unlockDate, isIndia)}</strong></>
+                              : <>from {isIndia ? '₹19' : '€0.49'}</>}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">⚠️ No refund if capsule deleted</p>
+                          <button onClick={() => handlePerCapsulePayment('text')}
+                            disabled={perCapsulePaying || !form.message.trim()}
+                            className="w-full mt-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition">
+                            {perCapsulePaying ? 'Processing...' : `Pay ${getDisplayPrice('text', form.unlockDate, isIndia)} & Seal — Unlimited words`}
+                          </button>
+                        </div>
+                        <div className="p-4">
+                          <p className="font-bold text-gray-800 text-sm">📅 Subscribe for unlimited always</p>
+                          <p className="text-xs text-gray-500 mt-1">{isIndia ? '₹99/mo' : '€2.99/mo'} · Unlimited text + audio + video</p>
+                          <button onClick={goToPricing}
+                            className="w-full mt-3 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2.5 rounded-xl text-sm font-medium transition">
+                            See subscription plans →
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* ── AUDIO — free users ── */}
                 {messageType === 'audio' && !isPaid && !isLegacyMode && (
                   <div className="space-y-4">
-                    {/* ✅ FIX 3 — File picker with remove button */}
                     <div className={`border-2 rounded-xl p-5 text-center ${audioFile ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="text-3xl mb-2">🎵</div>
                       <p className="text-sm font-medium text-gray-700 mb-3">Select your audio file</p>
                       {!audioFile ? (
                         <>
-                          <input type="file" accept="audio/*" id="audio-input-free"
-                            onChange={e => setAudioFile(e.target.files[0])}
-                            className="hidden" />
-                          <label htmlFor="audio-input-free"
-                            className="inline-block cursor-pointer border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition">
+                          <input type="file" accept="audio/*" id="audio-input-free" onChange={e => setAudioFile(e.target.files[0])} className="hidden" />
+                          <label htmlFor="audio-input-free" className="inline-block cursor-pointer border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition">
                             Choose audio file
                           </label>
                         </>
@@ -840,10 +879,7 @@ export default function CreateCapsule() {
                         <div className="bg-white rounded-xl p-3 border border-green-200">
                           <p className="text-sm text-green-700 font-medium">✅ {audioFile.name}</p>
                           <p className="text-xs text-gray-400 mt-1">{(audioFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                          <button onClick={() => setAudioFile(null)}
-                            className="mt-2 text-xs text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded-lg transition">
-                            🗑️ Remove file
-                          </button>
+                          <button onClick={() => setAudioFile(null)} className="mt-2 text-xs text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded-lg transition">🗑️ Remove file</button>
                         </div>
                       )}
                       <p className="text-xs text-gray-400 mt-2">MP3, WAV, M4A · Max 50MB</p>
@@ -857,20 +893,19 @@ export default function CreateCapsule() {
                         <p className="text-xs text-gray-500 mt-1">
                           One-time ·{' '}
                           {form.unlockDate
-                            ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getPerCapsulePrice('audio', form.unlockDate, isIndia).display}</strong></>
+                            ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getDisplayPrice('audio', form.unlockDate, isIndia)}</strong></>
                             : <>from {isIndia ? '₹49' : '€1.49'}</>}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">⚠️ No refund if capsule deleted</p>
-                        <button onClick={handlePerCapsulePayment} disabled={perCapsulePaying || !audioFile}
+                        <button onClick={() => handlePerCapsulePayment('audio')} disabled={perCapsulePaying || !audioFile}
                           className="w-full mt-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition">
-                          {perCapsulePaying ? 'Processing...' : !audioFile ? 'Select audio file first ↑' : `Pay ${getPerCapsulePrice('audio', form.unlockDate, isIndia).display} & Seal`}
+                          {perCapsulePaying ? 'Processing...' : !audioFile ? 'Select audio file first ↑' : `Pay ${getDisplayPrice('audio', form.unlockDate, isIndia)} & Seal`}
                         </button>
                       </div>
                       <div className="p-4">
                         <p className="font-bold text-gray-800 text-sm">📅 Subscribe for unlimited</p>
                         <p className="text-xs text-gray-500 mt-1">{isIndia ? '₹99/mo' : '€2.99/mo'} · Unlimited audio & video</p>
-                        <button onClick={goToPricing}
-                          className="w-full mt-3 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2.5 rounded-xl text-sm font-medium transition">
+                        <button onClick={goToPricing} className="w-full mt-3 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2.5 rounded-xl text-sm font-medium transition">
                           See subscription plans →
                         </button>
                       </div>
@@ -884,21 +919,14 @@ export default function CreateCapsule() {
                     <div className="text-4xl mb-3">🎵</div>
                     <h3 className="text-base font-bold text-gray-800 mb-2">Audio Message</h3>
                     <p className="text-gray-500 text-sm mb-4">Upload an audio file or record your voice.</p>
-                    {/* ✅ FIX 3 — Show file picker OR file info with remove */}
                     {!audioFile ? (
-                      <>
-                        <input type="file" accept="audio/*" id="audio-input-paid"
-                          onChange={e => setAudioFile(e.target.files[0])}
-                          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer" />
-                      </>
+                      <input type="file" accept="audio/*" onChange={e => setAudioFile(e.target.files[0])}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer" />
                     ) : (
                       <div className="bg-white rounded-xl p-3 border border-green-200 mb-2">
                         <p className="text-sm text-green-700 font-medium">✅ {audioFile.name}</p>
                         <p className="text-xs text-gray-400 mt-1">{(audioFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                        <button onClick={() => setAudioFile(null)}
-                          className="mt-2 text-xs text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded-lg transition">
-                          🗑️ Remove file
-                        </button>
+                        <button onClick={() => setAudioFile(null)} className="mt-2 text-xs text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded-lg transition">🗑️ Remove file</button>
                       </div>
                     )}
                     <p className="text-gray-400 text-xs mt-3">MP3, WAV, M4A · Max 50MB · Uploaded securely to cloud</p>
@@ -913,11 +941,8 @@ export default function CreateCapsule() {
                       <p className="text-sm font-medium text-gray-700 mb-3">Select your video file</p>
                       {!videoFile ? (
                         <>
-                          <input type="file" accept="video/*" id="video-input-free"
-                            onChange={e => setVideoFile(e.target.files[0])}
-                            className="hidden" />
-                          <label htmlFor="video-input-free"
-                            className="inline-block cursor-pointer border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition">
+                          <input type="file" accept="video/*" id="video-input-free" onChange={e => setVideoFile(e.target.files[0])} className="hidden" />
+                          <label htmlFor="video-input-free" className="inline-block cursor-pointer border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition">
                             Choose video file
                           </label>
                         </>
@@ -930,10 +955,7 @@ export default function CreateCapsule() {
                             const tier = mb <= 100 ? 'up to 100MB' : mb <= 500 ? '101-500MB' : '501MB-2GB'
                             return <p className="text-xs text-amber-600 mt-1">Size tier: {tier}</p>
                           })()}
-                          <button onClick={() => setVideoFile(null)}
-                            className="mt-2 text-xs text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded-lg transition">
-                            🗑️ Remove file
-                          </button>
+                          <button onClick={() => setVideoFile(null)} className="mt-2 text-xs text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded-lg transition">🗑️ Remove file</button>
                         </div>
                       )}
                       <p className="text-xs text-gray-400 mt-2">MP4, MOV · Max 2GB · Price based on file size</p>
@@ -947,20 +969,19 @@ export default function CreateCapsule() {
                         <p className="text-xs text-gray-500 mt-1">
                           One-time · Price by file size + delivery ·{' '}
                           {form.unlockDate
-                            ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getPerCapsulePrice('video', form.unlockDate, isIndia).display}</strong></>
+                            ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getDisplayPrice('video', form.unlockDate, isIndia)}</strong></>
                             : <>from {isIndia ? '₹149' : '€4.99'}</>}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">⚠️ No refund if capsule deleted</p>
-                        <button onClick={handlePerCapsulePayment} disabled={perCapsulePaying || !videoFile}
+                        <button onClick={() => handlePerCapsulePayment('video')} disabled={perCapsulePaying || !videoFile}
                           className="w-full mt-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition">
-                          {perCapsulePaying ? 'Processing...' : !videoFile ? 'Select video file first ↑' : `Pay ${getPerCapsulePrice('video', form.unlockDate, isIndia).display} & Seal`}
+                          {perCapsulePaying ? 'Processing...' : !videoFile ? 'Select video file first ↑' : `Pay ${getDisplayPrice('video', form.unlockDate, isIndia)} & Seal`}
                         </button>
                       </div>
                       <div className="p-4">
                         <p className="font-bold text-gray-800 text-sm">📅 Subscribe for unlimited</p>
                         <p className="text-xs text-gray-500 mt-1">{isIndia ? '₹99/mo' : '€2.99/mo'} · Unlimited audio & video</p>
-                        <button onClick={goToPricing}
-                          className="w-full mt-3 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2.5 rounded-xl text-sm font-medium transition">
+                        <button onClick={goToPricing} className="w-full mt-3 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2.5 rounded-xl text-sm font-medium transition">
                           See subscription plans →
                         </button>
                       </div>
@@ -974,39 +995,31 @@ export default function CreateCapsule() {
                     <div className="text-4xl mb-3">🎥</div>
                     <h3 className="text-base font-bold text-gray-800 mb-2">Video Message</h3>
                     <p className="text-gray-500 text-sm mb-4">Upload a video file.</p>
-                    {/* ✅ FIX 3 — Show file picker OR file info with remove */}
                     {!videoFile ? (
-                      <input type="file" accept="video/*" id="video-input-paid"
-                        onChange={e => setVideoFile(e.target.files[0])}
+                      <input type="file" accept="video/*" onChange={e => setVideoFile(e.target.files[0])}
                         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer" />
                     ) : (
                       <div className="bg-white rounded-xl p-3 border border-green-200 mb-2">
                         <p className="text-sm text-green-700 font-medium">✅ {videoFile.name}</p>
                         <p className="text-xs text-gray-400 mt-1">{(videoFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                        <button onClick={() => setVideoFile(null)}
-                          className="mt-2 text-xs text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded-lg transition">
-                          🗑️ Remove file
-                        </button>
+                        <button onClick={() => setVideoFile(null)} className="mt-2 text-xs text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded-lg transition">🗑️ Remove file</button>
                       </div>
                     )}
                     <p className="text-gray-400 text-xs mt-3">MP4, MOV · Max 500MB · Uploaded securely to cloud</p>
                   </div>
                 )}
 
-                {/* Upload progress */}
                 {uploadProgress && (
                   <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3">
                     <p className="text-sm text-blue-700">⏳ {uploadProgress}</p>
                   </div>
                 )}
 
-                {/* Seal/Back buttons — paid/legacy/text */}
-                {(isPaid || isLegacyMode || messageType === 'text') && (
+                {/* Seal button — paid/legacy users */}
+                {(isPaid || isLegacyMode) && (
                   <div className="flex gap-3 mt-5">
                     <button onClick={() => setStep(isLegacyMode ? 1 : 2)}
-                      className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">
-                      ← Back
-                    </button>
+                      className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
                     <button onClick={handleSubmit} disabled={isSealDisabled()}
                       className={`flex-1 ${accentClasses.btn} disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm`}>
                       {loading ? (uploadProgress ? 'Uploading...' : 'Sealing...') : isLegacyMode ? 'Seal legacy capsule 👻' : 'Seal capsule 🔒'}
@@ -1014,13 +1027,28 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
+                {/* Seal button — free users on text (within 5000 words) */}
+                {!isPaid && !isLegacyMode && messageType === 'text' && wordCount <= 5000 && (
+                  <div className="flex gap-3 mt-5">
+                    <button onClick={() => setStep(2)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
+                    <button onClick={handleSubmit} disabled={!form.message || loading}
+                      className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm">
+                      {loading ? 'Sealing...' : 'Seal capsule 🔒'}
+                    </button>
+                  </div>
+                )}
+
                 {/* Back button for free users on audio/video */}
                 {!isPaid && !isLegacyMode && messageType !== 'text' && (
                   <div className="mt-4">
-                    <button onClick={() => setStep(isLegacyMode ? 1 : 2)}
-                      className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">
-                      ← Back
-                    </button>
+                    <button onClick={() => setStep(2)} className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
+                  </div>
+                )}
+
+                {/* Back button for free users on text over limit */}
+                {!isPaid && !isLegacyMode && messageType === 'text' && wordCount > 5000 && (
+                  <div className="mt-4">
+                    <button onClick={() => setStep(2)} className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
                   </div>
                 )}
 

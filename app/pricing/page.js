@@ -199,13 +199,20 @@ export default function PricingPage() {
               className="block w-full text-center border-2 border-amber-500 text-amber-600 hover:bg-amber-50 py-2.5 rounded-xl font-medium transition mb-5 text-sm">
               {user ? 'Dashboard' : 'Get started free'}
             </a>
-            {/* ✅ Updated — per capsule option */}
+            {/* ✅ Updated — text + audio + video per capsule */}
             <ul className="space-y-2 md:space-y-3 text-sm text-gray-600">
-              <li>✅ 3 text capsules</li>
-              <li>✅ 5,000 words total</li>
+              <li>✅ 3 text capsules free</li>
+              <li>✅ 5,000 words (free capsules)</li>
               <li>✅ Text stored forever</li>
               <li>✅ Email delivery</li>
               <li>✅ All milestones</li>
+              <li className="text-gray-600">
+                📝 Text — pay per capsule
+                <span className="ml-1 text-xs text-amber-600 font-semibold">
+                  {isIndia ? 'from ₹19' : 'from €0.49'}
+                </span>
+                <span className="ml-1 text-xs text-gray-400">unlimited words</span>
+              </li>
               <li className="text-gray-500">
                 🎵 Audio — pay per capsule
                 <span className="ml-1 text-xs text-amber-600 font-semibold">
@@ -330,30 +337,38 @@ export default function PricingPage() {
           </div>
         )}
 
-        {/* ✅ Per-capsule pricing note */}
+        {/* ✅ Per-capsule pricing note — updated with text capsules */}
         <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5">
           <div className="flex items-start gap-4">
             <span className="text-2xl">💳</span>
             <div>
               <h3 className="font-bold text-gray-800 mb-1">No subscription? Pay per capsule</h3>
+              {/* ✅ Updated description */}
               <p className="text-gray-500 text-sm mb-3">
-                Free users can send audio and video capsules without subscribing.
-                Price is based on file size and delivery date — the longer the storage, the higher the price.
+                No subscription needed. Pay once per capsule.
+                Text capsules get unlimited words when you pay.
+                Audio and video price is based on file size and delivery date.
               </p>
+              {/* ✅ Updated grid — now includes text pricing rows */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: 'Audio · 1yr', inr: '₹49', eur: '€1.49' },
-                  { label: 'Audio · 5yr', inr: '₹99', eur: '€2.99' },
-                  { label: 'Audio · 10yr', inr: '₹199', eur: '€5.99' },
-                  { label: 'Audio · 10yr+', inr: '₹399', eur: '€11.99' },
-                  { label: 'Video · 1yr (≤100MB)', inr: '₹149', eur: '€4.99' },
-                  { label: 'Video · 5yr (≤100MB)', inr: '₹299', eur: '€8.99' },
-                  { label: 'Video · 1yr (101-500MB)', inr: '₹299', eur: '€9.99' },
-                  { label: 'Video · 5yr (101-500MB)', inr: '₹599', eur: '€19.99' },
+                  { label: '📝 Text · 1yr', inr: '₹19', eur: '€0.49', note: 'unlimited words' },
+                  { label: '📝 Text · 5yr', inr: '₹29', eur: '€0.99', note: 'unlimited words' },
+                  { label: '📝 Text · 10yr', inr: '₹49', eur: '€1.99', note: 'unlimited words' },
+                  { label: '📝 Text · 10yr+', inr: '₹99', eur: '€2.99', note: 'unlimited words' },
+                  { label: '🎵 Audio · 1yr', inr: '₹49', eur: '€1.49' },
+                  { label: '🎵 Audio · 5yr', inr: '₹99', eur: '€2.99' },
+                  { label: '🎵 Audio · 10yr', inr: '₹199', eur: '€5.99' },
+                  { label: '🎵 Audio · 10yr+', inr: '₹399', eur: '€11.99' },
+                  { label: '🎥 Video · 1yr (≤100MB)', inr: '₹149', eur: '€4.99' },
+                  { label: '🎥 Video · 5yr (≤100MB)', inr: '₹299', eur: '€8.99' },
+                  { label: '🎥 Video · 1yr (101-500MB)', inr: '₹299', eur: '€9.99' },
+                  { label: '🎥 Video · 5yr (101-500MB)', inr: '₹599', eur: '€19.99' },
                 ].map((row, i) => (
                   <div key={i} className="bg-white rounded-xl p-3 border border-amber-100 text-center">
                     <p className="text-xs text-gray-500 mb-1">{row.label}</p>
                     <p className="font-bold text-gray-800">{isIndia ? row.inr : row.eur}</p>
+                    {row.note && <p className="text-xs text-gray-400">{row.note}</p>}
                   </div>
                 ))}
               </div>

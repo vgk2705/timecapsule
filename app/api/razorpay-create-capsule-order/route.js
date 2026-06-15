@@ -5,7 +5,6 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 })
 
-// Size tiers for video
 function getVideoSizeTier(fileSizeBytes) {
   const mb = fileSizeBytes / (1024 * 1024)
   if (mb <= 100) return 'small'
@@ -14,7 +13,6 @@ function getVideoSizeTier(fileSizeBytes) {
   return 'too_large'
 }
 
-// Delivery year tier
 function getDeliveryTier(unlockDate) {
   if (!unlockDate) return '5'
   const years = Math.max(1, Math.ceil(
@@ -26,8 +24,14 @@ function getDeliveryTier(unlockDate) {
   return '10+'
 }
 
-// Pricing in paise (INR × 100)
+// All prices in paise (INR × 100)
 const PRICING = {
+  text: {
+    '1': 1900,    // ₹19
+    '5': 2900,    // ₹29
+    '10': 4900,   // ₹49
+    '10+': 9900,  // ₹99
+  },
   audio: {
     '1': 4900,    // ₹49
     '5': 9900,    // ₹99
@@ -35,22 +39,22 @@ const PRICING = {
     '10+': 39900, // ₹399
   },
   video: {
-    small: { // up to 100MB
-      '1': 14900,  // ₹149
-      '5': 29900,  // ₹299
-      '10': 49900, // ₹499
+    small: {
+      '1': 14900,   // ₹149
+      '5': 29900,   // ₹299
+      '10': 49900,  // ₹499
       '10+': 99900, // ₹999
     },
-    medium: { // 101MB - 500MB
-      '1': 29900,   // ₹299
-      '5': 59900,   // ₹599
-      '10': 99900,  // ₹999
+    medium: {
+      '1': 29900,    // ₹299
+      '5': 59900,    // ₹599
+      '10': 99900,   // ₹999
       '10+': 199900, // ₹1,999
     },
-    large: { // 501MB - 2GB
-      '1': 59900,   // ₹599
-      '5': 119900,  // ₹1,199
-      '10': 199900, // ₹1,999
+    large: {
+      '1': 59900,    // ₹599
+      '5': 119900,   // ₹1,199
+      '10': 199900,  // ₹1,999
       '10+': 399900, // ₹3,999
     }
   }
@@ -63,12 +67,18 @@ function getPrice(mediaType, fileSizeBytes, unlockDate) {
     (1000 * 60 * 60 * 24 * 365)
   ))
 
+  if (mediaType === 'text') {
+    return {
+      amount: PRICING.text[deliveryTier],
+      deliveryTier, years, sizeTier: null,
+      label: `Text Capsule · ${years} year${years > 1 ? 's' : ''} storage · Unlimited words`,
+    }
+  }
+
   if (mediaType === 'audio') {
     return {
       amount: PRICING.audio[deliveryTier],
-      deliveryTier,
-      years,
-      sizeTier: null,
+      deliveryTier, years, sizeTier: null,
       label: `Audio · ${years} year${years > 1 ? 's' : ''} storage`,
     }
   }
@@ -80,9 +90,7 @@ function getPrice(mediaType, fileSizeBytes, unlockDate) {
     }
     return {
       amount: PRICING.video[sizeTier][deliveryTier],
-      deliveryTier,
-      years,
-      sizeTier,
+      deliveryTier, years, sizeTier,
       label: `Video · ${sizeTier === 'small' ? 'up to 100MB' : sizeTier === 'medium' ? '101-500MB' : '501MB-2GB'} · ${years} year${years > 1 ? 's' : ''} storage`,
     }
   }
