@@ -440,63 +440,117 @@ export default function CreateCapsule() {
   )
 
   if (limitReached) return (
-    <div className="min-h-screen bg-amber-50 flex flex-col">
-      <div className="flex-1 flex items-center justify-center px-4">
-        <div className="text-center p-6 md:p-10 max-w-lg">
-          <div className="text-6xl mb-6">📝</div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">3 free capsules used</h1>
-          <p className="text-gray-500 mb-6">You've used all 3 free text capsules. Choose how to continue:</p>
+   <div className="min-h-screen bg-amber-50 flex flex-col">
+     <div className="flex-1 flex items-center justify-center px-4">
+       <div className="text-center p-6 md:p-10 max-w-lg w-full">
+         <div className="text-6xl mb-4">💌</div>
+         <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">3 free capsules used</h1>
+         <p className="text-gray-500 mb-8">
+           Want to create more? Pay per capsule or subscribe for unlimited.
+         </p>
 
-          <div className="grid grid-cols-1 gap-4 mb-6 text-left">
-            {/* Pay per text capsule */}
-            <div className="bg-white border-2 border-amber-400 rounded-2xl p-5">
-              <p className="font-bold text-gray-800 mb-1">📝 Pay per text capsule</p>
-              <p className="text-sm text-gray-500 mb-1">Unlimited words · No subscription needed</p>
-              <div className="grid grid-cols-2 gap-2 my-3 text-xs">
-                {[
-                  { label: '1 year delivery', inr: '₹19', eur: '€0.29' },
-                  { label: '1-5 years', inr: '₹29', eur: '€0.49' },
-                  { label: '5-10 years', inr: '₹49', eur: '€0.99' },
-                  { label: '10+ years', inr: '₹99', eur: '€1.99' },
-                ].map((r, i) => (
-                  <div key={i} className="flex justify-between bg-amber-50 rounded-lg px-2 py-1.5">
-                    <span className="text-gray-500">{r.label}</span>
-                    <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-gray-400">⚠️ No refund if capsule deleted</p>
-              {/* ✅ FIXED — link to /create?bypass=true to avoid infinite loop */}
-              <a href="/create?bypass=true"
-                className="mt-3 block w-full text-center bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-semibold text-sm transition">
-                Create text capsule →
-              </a>
-            </div>
+         {/* Pay per capsule — all types */}
+        <div className="bg-white border-2 border-amber-400 rounded-2xl p-5 mb-4 text-left shadow-sm">
+           <p className="font-bold text-gray-800 text-base mb-1">💳 Pay per capsule</p>
+           <p className="text-sm text-gray-500 mb-4">No subscription needed · Create any type</p>
 
-            {/* Subscribe */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-5">
-              <p className="font-bold text-gray-800 mb-1">📅 Subscribe for unlimited</p>
-              <p className="text-sm text-gray-500 mb-3">Unlimited text + audio + video capsules</p>
-              <a href="/upgrade"
-                className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white py-2.5 rounded-xl font-semibold text-sm transition">
-                See plans — {isIndia ? 'from ₹99/mo' : 'from €2.99/mo'}
-              </a>
-            </div>
-          </div>
+           {/* Text */}
+           <div className="mb-4">
+             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">📝 Text capsule — unlimited words</p>
+             <div className="grid grid-cols-2 gap-2">
+               {[
+                 { label: '1 year', inr: '₹19', eur: '€0.29' },
+                 { label: '1-5 years', inr: '₹29', eur: '€0.49' },
+                 { label: '5-10 years', inr: '₹49', eur: '€0.99' },
+                 { label: '10+ years', inr: '₹99', eur: '€1.99' },
+               ].map((r, i) => (
+                 <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
+                   <span className="text-gray-500">{r.label}</span>
+                   <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
+                 </div>
+               ))}
+             </div>
+           </div>
 
-          <a href="/dashboard" className="text-sm text-gray-400 hover:text-gray-600">← Back to dashboard</a>
-        </div>
+           {/* Audio */}
+           <div className="mb-4">
+             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">🎵 Audio capsule — max 50MB</p>
+             <div className="grid grid-cols-2 gap-2">
+               {[
+                 { label: '1 year', inr: '₹49', eur: '€1.49' },
+                 { label: '1-5 years', inr: '₹99', eur: '€2.99' },
+                 { label: '5-10 years', inr: '₹199', eur: '€5.99' },
+                 { label: '10+ years', inr: '₹399', eur: '€11.99' },
+               ].map((r, i) => (
+                 <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
+                   <span className="text-gray-500">{r.label}</span>
+                   <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
+                 </div>
+               ))}
+             </div>
+           </div>
+ 
+           {/* Video */}
+           <div className="mb-4">
+             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">🎥 Video capsule — price by file size</p>
+             <div className="space-y-1">
+               {[
+                 { label: '≤100MB · 1yr', inr: '₹149', eur: '€4.99' },
+                 { label: '≤100MB · 5yr', inr: '₹299', eur: '€8.99' },
+                 { label: '101-500MB · 1yr', inr: '₹299', eur: '€9.99' },
+                 { label: '501MB-2GB · 1yr', inr: '₹599', eur: '€19.99' },
+               ].map((r, i) => (
+                 <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
+                   <span className="text-gray-500">{r.label}</span>
+                   <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
+                 </div>
+               ))}
+               <p className="text-xs text-gray-400 mt-1 px-1">Price shown at checkout based on your file + delivery date</p>
+             </div>
+           </div>
+  
+           <p className="text-xs text-gray-400 mb-4">⚠️ No refund if capsule deleted after payment</p>
+ 
+           <a href="/create?bypass=true"
+             className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-semibold transition text-sm">
+             Create Capsule →
+           </a>
+         </div>
+ 
+         {/* Subscribe */}
+         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 text-left shadow-sm">
+           <p className="font-bold text-gray-800 text-base mb-1">📅 Subscribe for unlimited</p>
+           <p className="text-sm text-gray-500 mb-1">Unlimited text + audio + video · No per-capsule fees</p>
+           <div className="grid grid-cols-2 gap-2 my-3 text-xs">
+             <div className="bg-gray-50 rounded-lg px-3 py-2">
+               <p className="text-gray-500">Loved plan</p>
+               <p className="font-bold text-gray-800">{isIndia ? '₹99/mo' : '€2.99/mo'}</p>
+             </div>
+             <div className="bg-gray-50 rounded-lg px-3 py-2">
+               <p className="text-gray-500">Forever plan</p>
+               <p className="font-bold text-gray-800">{isIndia ? '₹249/mo' : '€4.99/mo'}</p>
+             </div>
+           </div>
+           <a href="/upgrade"
+             className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-xl font-semibold transition text-sm">
+             See subscription plans →
+           </a>
+         </div>
+
+         <a href="/dashboard" className="text-sm text-gray-400 hover:text-gray-600 transition">← Back to dashboard</a>
+       </div>
+     </div>
+
+     <footer className="text-center py-6 text-gray-400 text-sm px-4">
+       <div className="flex flex-wrap justify-center gap-4 mb-3">
+         <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
+         <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
+         <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
       </div>
-      <footer className="text-center py-6 text-gray-400 text-sm px-4">
-        <div className="flex flex-wrap justify-center gap-4 mb-3">
-          <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
-          <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
-          <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
-        </div>
-        © 2026 TimeCapsule · Made with love for families
-      </footer>
-    </div>
-  )
+       © 2026 TimeCapsule · Made with love for families
+     </footer>
+   </div>
+ )
 
   if (submitted) return (
     <div className={`min-h-screen ${accentClasses.bg} flex flex-col`}>
