@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
-import { deleteFromR2 } from '../lib/r2'
 
 export default function Dashboard() {
   const [capsules, setCapsules] = useState([])
@@ -100,14 +99,17 @@ export default function Dashboard() {
   const handleDelete = async (capsule) => {
     const hasPayment = capsulePayments[capsule.id]
     const isMediaCapsule = capsule.media_type === 'audio' || capsule.media_type === 'video'
+    const isTextCapsule = !capsule.media_type && !capsule.is_legacy
 
     let confirmMsg = 'Are you sure you want to delete this capsule? This cannot be undone.'
 
-    if (hasPayment && isMediaCapsule) {
+    // ✅ Show no-refund warning for ANY paid capsule (text, audio, video)
+    if (hasPayment) {
       const amount = hasPayment.currency === 'INR'
         ? `₹${hasPayment.amount}`
         : `€${hasPayment.amount}`
-      confirmMsg = `Are you sure you want to delete this ${capsule.media_type} capsule?\n\n⚠️ No refund policy: You paid ${amount} for this capsule. Deleting it will permanently remove the file. No refund will be issued.\n\nThis cannot be undone.`
+      const type = isTextCapsule ? 'text' : capsule.media_type
+      confirmMsg = `Are you sure you want to delete this ${type} capsule?\n\n⚠️ No refund policy: You paid ${amount} for this capsule. Deleting it will permanently remove it. No refund will be issued.\n\nThis cannot be undone.`
     }
 
     if (!confirm(confirmMsg)) return
@@ -116,18 +118,22 @@ export default function Dashboard() {
     try {
       // Delete from Cloudflare R2 if has media
       if (capsule.media_url) {
-        const key = capsule.media_url.replace(
-          process.env.NEXT_PUBLIC_R2_PUBLIC_URL + '/',
-          ''
-        )
         await fetch('/api/delete-media', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, userId: user.id, fileSize: capsule.media_file_size, mediaType: capsule.media_type })
+          body: JSON.stringify({
+            key: capsule.media_url.replace(
+              process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL + '/',
+              ''
+            ),
+            userId: user.id,
+            fileSize: capsule.media_file_size,
+            mediaType: capsule.media_type
+          })
         })
       }
 
-      // Mark payment as capsule_deleted
+      // Mark payment as capsule_deleted for any paid capsule
       if (hasPayment) {
         await supabase
           .from('capsule_payments')
@@ -173,6 +179,12 @@ export default function Dashboard() {
   const planBadge = planConfig[currentPlan] || planConfig.free
   const isPaid = currentPlan !== 'free'
   const mediaCapsules = capsules.filter(c => c.media_type === 'audio' || c.media_type === 'video')
+
+  // ✅ Calculate capsule counts correctly
+  const nonLegacyCapsules = capsules.filter(c => !c.is_legacy)
+  const nonLegacyCount = nonLegacyCapsules.length
+  const freeCapsuleCount = Math.min(nonLegacyCount, 3)
+  const paidCapsuleCount = Math.max(0, nonLegacyCount - 3)
 
   if (loading) return (
     <div className="min-h-screen bg-amber-50 flex items-center justify-center">
@@ -334,18 +346,32 @@ export default function Dashboard() {
           </a>
         </div>
 
-        {/* Free plan limit warning */}
-        {!isPaid && capsules.filter(c => !c.is_legacy).length >= 2 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4">
-            <p className="text-amber-700 text-sm">
-              ⚠️ <strong>{capsules.filter(c => !c.is_legacy).length}/3</strong> free capsules used.
-              {capsules.filter(c => !c.is_legacy).length >= 3 ? ' Upgrade to create more.' : ''}
-            </p>
-            {capsules.filter(c => !c.is_legacy).length >= 3 && (
+        {/* ✅ FIXED — Smart capsule counter */}
+        {!isPaid && (() => {
+          if (nonLegacyCount === 0) return null
+          if (nonLegacyCount >= 3) return (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-amber-700 text-sm font-medium">✅ 3/3 free capsules used</p>
+                {paidCapsuleCount > 0 && (
+                  <p className="text-amber-600 text-xs mt-0.5">
+                    + {paidCapsuleCount} paid capsule{paidCapsuleCount > 1 ? 's' : ''} created
+                  </p>
+                )}
+              </div>
               <a href="/upgrade" className="text-amber-600 text-sm font-bold hover:underline flex-shrink-0">Upgrade →</a>
-            )}
-          </div>
-        )}
+            </div>
+          )
+          if (nonLegacyCount >= 2) return (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+              <p className="text-amber-700 text-sm">
+                ⚠️ <strong>{nonLegacyCount}/3</strong> free capsules used.
+                <a href="/upgrade" className="ml-2 font-bold underline">Upgrade for unlimited</a>
+              </p>
+            </div>
+          )
+          return null
+        })()}
 
         {capsules.length === 0 ? (
           <div className="text-center py-16 md:py-20">
@@ -360,6 +386,8 @@ export default function Dashboard() {
             {capsules.map(capsule => {
               const hasPayment = capsulePayments[capsule.id]
               const isMediaCapsule = capsule.media_type === 'audio' || capsule.media_type === 'video'
+              // ✅ Text capsule = no media_type and not legacy
+              const isTextCapsule = !capsule.media_type && !capsule.is_legacy
 
               return (
                 <div key={capsule.id} className={`bg-white rounded-2xl p-4 md:p-6 shadow-sm ${
@@ -371,19 +399,32 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <p className="text-sm text-amber-600 font-medium">To: {capsule.recipient_name}</p>
+
                         {capsule.is_legacy && (
                           <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">👻 Legacy</span>
                         )}
+
+                        {/* ✅ Media type badges */}
                         {isMediaCapsule && (
                           <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
                             {capsule.media_type === 'audio' ? '🎵 Audio' : '🎥 Video'}
                           </span>
                         )}
-                        {hasPayment && isMediaCapsule && (
+
+                        {/* ✅ Show 📝 Text badge only for paid text capsules */}
+                        {isTextCapsule && hasPayment && (
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-semibold">
+                            📝 Text
+                          </span>
+                        )}
+
+                        {/* ✅ FIXED — 💳 Paid badge for ALL types (text + audio + video) */}
+                        {hasPayment && (
                           <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
                             💳 Paid
                           </span>
                         )}
+
                         {cancelledSub && isMediaCapsule && (
                           <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
                             ⚠️ Deletes in {cancelledSub.daysLeft}d
@@ -391,7 +432,6 @@ export default function Dashboard() {
                         )}
                       </div>
 
-                      {/* Show message or media info */}
                       {editingId === capsule.id ? (
                         <div className="space-y-3">
                           <textarea value={editMessage} onChange={e => setEditMessage(e.target.value)} rows={4}
@@ -406,15 +446,17 @@ export default function Dashboard() {
                       ) : (
                         <div>
                           <p className="text-gray-700 text-sm line-clamp-2 break-words">{capsule.message}</p>
-                          {/* Show file info for media capsules */}
+
+                          {/* File info for media capsules */}
                           {isMediaCapsule && capsule.media_file_name && (
                             <p className="text-xs text-gray-400 mt-1">
                               📁 {capsule.media_file_name}
                               {capsule.media_file_size && ` · ${(capsule.media_file_size / 1024 / 1024).toFixed(1)} MB`}
                             </p>
                           )}
-                          {/* No refund notice for paid media capsules */}
-                          {hasPayment && isMediaCapsule && (
+
+                          {/* ✅ FIXED — Paid info for ALL types */}
+                          {hasPayment && (
                             <p className="text-xs text-gray-400 mt-1">
                               💳 Paid {hasPayment.currency === 'INR' ? '₹' : '€'}{hasPayment.amount} · No refund on delete
                             </p>
@@ -444,18 +486,16 @@ export default function Dashboard() {
                         </p>
                       </div>
 
-                      {/* Action buttons */}
                       {capsule.status === 'locked' && editingId !== capsule.id && (
                         <div className="flex gap-2">
-                          {/* Edit only for text capsules */}
-                          {!isMediaCapsule && (
+                          {/* ✅ FIXED — Edit only for FREE text capsules (no payment, not media, not legacy) */}
+                          {isTextCapsule && !hasPayment && !capsule.is_legacy && (
                             <button
                               onClick={() => { setEditingId(capsule.id); setEditMessage(capsule.message) }}
                               className="text-xs text-amber-600 hover:text-amber-700 border border-amber-200 px-3 py-1 rounded-lg transition">
                               ✏️ Edit
                             </button>
                           )}
-                          {/* Delete for all */}
                           <button
                             onClick={() => handleDelete(capsule)}
                             disabled={deleting === capsule.id}

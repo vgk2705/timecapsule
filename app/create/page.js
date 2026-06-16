@@ -75,10 +75,6 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 }
 
-// ✅ Check if bypass mode (came from limit screen to pay per capsule)
-const isBypassMode = typeof window !== 'undefined' &&
-  new URLSearchParams(window.location.search).get('bypass') === 'true'
-
 export default function CreateCapsule() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -102,6 +98,11 @@ export default function CreateCapsule() {
   const [perCapsulePaying, setPerCapsulePaying] = useState(false)
   const [recipientEmailError, setRecipientEmailError] = useState('')
   const [dateError, setDateError] = useState('')
+  const [isBypassMode, setIsBypassMode] = useState(false)
+
+  // ✅ NEW — Blocking overlay state
+  const [uploadBlocking, setUploadBlocking] = useState(false)
+  const [uploadBlockingMessage, setUploadBlockingMessage] = useState('')
 
   const [additionalRecipients, setAdditionalRecipients] = useState([])
   const [showAddRecipient, setShowAddRecipient] = useState(false)
@@ -126,7 +127,9 @@ export default function CreateCapsule() {
 
       const params = new URLSearchParams(window.location.search)
       const legacyParam = params.get('legacy') === 'true'
+      const bypassParam = params.get('bypass') === 'true'
       setIsLegacyMode(legacyParam)
+      setIsBypassMode(bypassParam)
 
       const { data: sub } = await supabase
         .from('subscriptions').select('plan, status')
@@ -155,11 +158,7 @@ export default function CreateCapsule() {
             .eq('sender_id', user.id).eq('is_legacy', false)
           const count = capsules?.length || 0
           setCapsuleCount(count)
-
-          // ✅ Check if user came from limit screen to pay per capsule
-          const bypassLimit = params.get('bypass') === 'true'
-
-          if (count >= 3 && !bypassLimit) {
+          if (count >= 3 && !bypassParam) {
             setLimitReached(true)
             return
           }
@@ -267,7 +266,8 @@ export default function CreateCapsule() {
   }
 
   const uploadFileToR2 = async (file, user) => {
-    setUploadProgress('Preparing upload...')
+    const setMsg = uploadBlocking ? setUploadBlockingMessage : setUploadProgress
+    setMsg('Preparing upload...')
     const urlRes = await fetch('/api/get-upload-url', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -278,13 +278,13 @@ export default function CreateCapsule() {
     })
     const urlData = await urlRes.json()
     if (urlData.error) throw new Error(urlData.error)
-    setUploadProgress('Uploading your media file...')
+    setMsg(`Uploading ${(file.size / 1024 / 1024).toFixed(1)}MB to cloud...`)
     const uploadRes = await fetch(urlData.presignedUrl, {
       method: 'PUT', body: file,
       headers: { 'Content-Type': file.type || (messageType === 'video' ? 'video/mp4' : 'audio/mpeg') },
     })
     if (!uploadRes.ok) throw new Error('Upload to cloud storage failed')
-    setUploadProgress('Confirming upload...')
+    setMsg('Confirming upload...')
     await fetch('/api/confirm-upload', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: user.id, fileType: messageType, fileSize: file.size }),
@@ -293,7 +293,9 @@ export default function CreateCapsule() {
   }
 
   const saveCapsule = async (user, mediaUrl, mediaFileName, mediaFileSize, paymentId = null, paymentAmount = null, paymentCurrency = null) => {
-    setUploadProgress('Sealing your capsule...')
+    if (uploadBlocking) setUploadBlockingMessage('Saving your capsule...')
+    else setUploadProgress('Sealing your capsule...')
+
     const insertData = {
       sender_name: form.senderName, relationship: form.relationship,
       recipient_name: form.recipientName, recipient_email: form.recipientEmail,
@@ -370,20 +372,29 @@ export default function CreateCapsule() {
         prefill: { email: (await supabase.auth.getUser()).data.user?.email || '' },
         theme: { color: '#f59e0b' },
         handler: async function(response) {
-          setLoading(true); setPerCapsulePaying(false)
+          setPerCapsulePaying(false)
+          // ✅ Show blocking overlay immediately after payment success
+          setUploadBlocking(true)
+          setUploadBlockingMessage('✅ Payment successful! Preparing your capsule...')
+
           const { data: { user } } = await supabase.auth.getUser()
           try {
             let mediaUrl = null, mediaFileName = null, mediaFileSize = null
             if (fileToUpload) {
+              setUploadBlockingMessage(`Uploading ${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB to cloud...`)
               const result = await uploadFileToR2(fileToUpload, user)
               mediaUrl = result.url; mediaFileName = result.fileName; mediaFileSize = result.fileSize
             }
+            setUploadBlockingMessage('Sealing your capsule...')
             await saveCapsule(user, mediaUrl, mediaFileName, mediaFileSize,
               response.razorpay_payment_id, orderData.amount / 100, 'INR')
-            setLoading(false); setUploadProgress(''); setSubmitted(true)
+            setUploadBlocking(false)
+            setUploadProgress('')
+            setSubmitted(true)
           } catch (err) {
+            setUploadBlocking(false)
             alert('Payment successful but saving failed. Contact support with payment ID: ' + response.razorpay_payment_id)
-            setLoading(false); setUploadProgress('')
+            setUploadProgress('')
           }
         },
         modal: { ondismiss: () => setPerCapsulePaying(false) }
@@ -440,117 +451,108 @@ export default function CreateCapsule() {
   )
 
   if (limitReached) return (
-   <div className="min-h-screen bg-amber-50 flex flex-col">
-     <div className="flex-1 flex items-center justify-center px-4">
-       <div className="text-center p-6 md:p-10 max-w-lg w-full">
-         <div className="text-6xl mb-4">💌</div>
-         <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">3 free capsules used</h1>
-         <p className="text-gray-500 mb-8">
-           Want to create more? Pay per capsule or subscribe for unlimited.
-         </p>
+    <div className="min-h-screen bg-amber-50 flex flex-col">
+      <div className="flex-1 flex items-center justify-center px-4">
+        <div className="text-center p-6 md:p-10 max-w-lg w-full">
+          <div className="text-6xl mb-4">💌</div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">3 free capsules used</h1>
+          <p className="text-gray-500 mb-8">Want to create more? Pay per capsule or subscribe for unlimited.</p>
 
-         {/* Pay per capsule — all types */}
-        <div className="bg-white border-2 border-amber-400 rounded-2xl p-5 mb-4 text-left shadow-sm">
-           <p className="font-bold text-gray-800 text-base mb-1">💳 Pay per capsule</p>
-           <p className="text-sm text-gray-500 mb-4">No subscription needed · Create any type</p>
+          <div className="bg-white border-2 border-amber-400 rounded-2xl p-5 mb-4 text-left shadow-sm">
+            <p className="font-bold text-gray-800 text-base mb-1">💳 Pay per capsule</p>
+            <p className="text-sm text-gray-500 mb-4">No subscription needed · Create any type</p>
 
-           {/* Text */}
-           <div className="mb-4">
-             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">📝 Text capsule — unlimited words</p>
-             <div className="grid grid-cols-2 gap-2">
-               {[
-                 { label: '1 year', inr: '₹19', eur: '€0.29' },
-                 { label: '1-5 years', inr: '₹29', eur: '€0.49' },
-                 { label: '5-10 years', inr: '₹49', eur: '€0.99' },
-                 { label: '10+ years', inr: '₹99', eur: '€1.99' },
-               ].map((r, i) => (
-                 <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
-                   <span className="text-gray-500">{r.label}</span>
-                   <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
-                 </div>
-               ))}
-             </div>
-           </div>
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">📝 Text capsule — unlimited words</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: '1 year', inr: '₹19', eur: '€0.29' },
+                  { label: '1-5 years', inr: '₹29', eur: '€0.49' },
+                  { label: '5-10 years', inr: '₹49', eur: '€0.99' },
+                  { label: '10+ years', inr: '₹99', eur: '€1.99' },
+                ].map((r, i) => (
+                  <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
+                    <span className="text-gray-500">{r.label}</span>
+                    <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-           {/* Audio */}
-           <div className="mb-4">
-             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">🎵 Audio capsule — max 50MB</p>
-             <div className="grid grid-cols-2 gap-2">
-               {[
-                 { label: '1 year', inr: '₹49', eur: '€1.49' },
-                 { label: '1-5 years', inr: '₹99', eur: '€2.99' },
-                 { label: '5-10 years', inr: '₹199', eur: '€5.99' },
-                 { label: '10+ years', inr: '₹399', eur: '€11.99' },
-               ].map((r, i) => (
-                 <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
-                   <span className="text-gray-500">{r.label}</span>
-                   <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
-                 </div>
-               ))}
-             </div>
-           </div>
- 
-           {/* Video */}
-           <div className="mb-4">
-             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">🎥 Video capsule — price by file size</p>
-             <div className="space-y-1">
-               {[
-                 { label: '≤100MB · 1yr', inr: '₹149', eur: '€4.99' },
-                 { label: '≤100MB · 5yr', inr: '₹299', eur: '€8.99' },
-                 { label: '101-500MB · 1yr', inr: '₹299', eur: '€9.99' },
-                 { label: '501MB-2GB · 1yr', inr: '₹599', eur: '€19.99' },
-               ].map((r, i) => (
-                 <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
-                   <span className="text-gray-500">{r.label}</span>
-                   <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
-                 </div>
-               ))}
-               <p className="text-xs text-gray-400 mt-1 px-1">Price shown at checkout based on your file + delivery date</p>
-             </div>
-           </div>
-  
-           <p className="text-xs text-gray-400 mb-4">⚠️ No refund if capsule deleted after payment</p>
- 
-           <a href="/create?bypass=true"
-             className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-semibold transition text-sm">
-             Create Capsule →
-           </a>
-         </div>
- 
-         {/* Subscribe */}
-         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 text-left shadow-sm">
-           <p className="font-bold text-gray-800 text-base mb-1">📅 Subscribe for unlimited</p>
-           <p className="text-sm text-gray-500 mb-1">Unlimited text + audio + video · No per-capsule fees</p>
-           <div className="grid grid-cols-2 gap-2 my-3 text-xs">
-             <div className="bg-gray-50 rounded-lg px-3 py-2">
-               <p className="text-gray-500">Loved plan</p>
-               <p className="font-bold text-gray-800">{isIndia ? '₹99/mo' : '€2.99/mo'}</p>
-             </div>
-             <div className="bg-gray-50 rounded-lg px-3 py-2">
-               <p className="text-gray-500">Forever plan</p>
-               <p className="font-bold text-gray-800">{isIndia ? '₹249/mo' : '€4.99/mo'}</p>
-             </div>
-           </div>
-           <a href="/upgrade"
-             className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-xl font-semibold transition text-sm">
-             See subscription plans →
-           </a>
-         </div>
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">🎵 Audio capsule — max 50MB</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: '1 year', inr: '₹49', eur: '€1.49' },
+                  { label: '1-5 years', inr: '₹99', eur: '€2.99' },
+                  { label: '5-10 years', inr: '₹199', eur: '€5.99' },
+                  { label: '10+ years', inr: '₹399', eur: '€11.99' },
+                ].map((r, i) => (
+                  <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
+                    <span className="text-gray-500">{r.label}</span>
+                    <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-         <a href="/dashboard" className="text-sm text-gray-400 hover:text-gray-600 transition">← Back to dashboard</a>
-       </div>
-     </div>
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">🎥 Video capsule — price by file size</p>
+              <div className="space-y-1">
+                {[
+                  { label: '≤100MB · 1yr', inr: '₹149', eur: '€4.99' },
+                  { label: '≤100MB · 5yr', inr: '₹299', eur: '€8.99' },
+                  { label: '101-500MB · 1yr', inr: '₹299', eur: '€9.99' },
+                  { label: '501MB-2GB · 1yr', inr: '₹599', eur: '€19.99' },
+                ].map((r, i) => (
+                  <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
+                    <span className="text-gray-500">{r.label}</span>
+                    <span className="font-bold text-amber-700">{isIndia ? r.inr : r.eur}</span>
+                  </div>
+                ))}
+                <p className="text-xs text-gray-400 mt-1 px-1">Price shown at checkout based on your file + delivery date</p>
+              </div>
+            </div>
 
-     <footer className="text-center py-6 text-gray-400 text-sm px-4">
-       <div className="flex flex-wrap justify-center gap-4 mb-3">
-         <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
-         <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
-         <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
+            <p className="text-xs text-gray-400 mb-4">⚠️ No refund if capsule deleted after payment</p>
+            <a href="/create?bypass=true"
+              className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-semibold transition text-sm">
+              Create Capsule →
+            </a>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 text-left shadow-sm">
+            <p className="font-bold text-gray-800 text-base mb-1">📅 Subscribe for unlimited</p>
+            <p className="text-sm text-gray-500 mb-1">Unlimited text + audio + video · No per-capsule fees</p>
+            <div className="grid grid-cols-2 gap-2 my-3 text-xs">
+              <div className="bg-gray-50 rounded-lg px-3 py-2">
+                <p className="text-gray-500">Loved plan</p>
+                <p className="font-bold text-gray-800">{isIndia ? '₹99/mo' : '€2.99/mo'}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg px-3 py-2">
+                <p className="text-gray-500">Forever plan</p>
+                <p className="font-bold text-gray-800">{isIndia ? '₹249/mo' : '€4.99/mo'}</p>
+              </div>
+            </div>
+            <a href="/upgrade"
+              className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-xl font-semibold transition text-sm">
+              See subscription plans →
+            </a>
+          </div>
+
+          <a href="/dashboard" className="text-sm text-gray-400 hover:text-gray-600 transition">← Back to dashboard</a>
+        </div>
       </div>
-       © 2026 TimeCapsule · Made with love for families
-     </footer>
-   </div>
- )
+      <footer className="text-center py-6 text-gray-400 text-sm px-4">
+        <div className="flex flex-wrap justify-center gap-4 mb-3">
+          <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
+          <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
+          <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
+        </div>
+        © 2026 TimeCapsule · Made with love for families
+      </footer>
+    </div>
+  )
 
   if (submitted) return (
     <div className={`min-h-screen ${accentClasses.bg} flex flex-col`}>
@@ -602,6 +604,22 @@ export default function CreateCapsule() {
 
   return (
     <div className={`min-h-screen ${accentClasses.bg} flex flex-col`}>
+
+      {/* ✅ Blocking upload overlay */}
+      {uploadBlocking && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="text-5xl mb-4">⏳</div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Please wait...</h2>
+            <p className="text-gray-500 text-sm mb-6">{uploadBlockingMessage}</p>
+            <div className="w-full bg-gray-100 rounded-full h-2 mb-4 overflow-hidden">
+              <div className="h-2 rounded-full bg-amber-500 animate-pulse" style={{ width: '100%' }} />
+            </div>
+            <p className="text-xs text-red-500 font-medium">⚠️ Do not close or refresh this page</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 py-8 md:py-12 px-4 md:px-6">
         <div className="max-w-xl mx-auto">
 
@@ -614,17 +632,16 @@ export default function CreateCapsule() {
             </div>
           )}
 
-          {/* ✅ UPDATED — bypass mode shows different banner */}
+          {/* ✅ Smart banner */}
           {!isPaid && !isLegacyMode && (
             <div className={`rounded-xl px-4 py-2 mb-4 text-sm text-center ${
               isBypassMode ? 'bg-blue-50 text-blue-700' : capsuleCount >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
             }`}>
               {isBypassMode
-                ? '💳 Creating paid text capsule — unlimited words'
-                : <>
-                    {capsuleCount}/3 free capsules used
-                    {capsuleCount >= 2 && <a href="/upgrade" className="ml-2 font-bold underline">Upgrade for unlimited</a>}
-                  </>
+                ? <>💳 Pay per capsule · <span className="font-semibold">Free capsules used up</span></>
+                : capsuleCount < 3
+                  ? <>{capsuleCount}/3 free capsules used</>
+                  : null
               }
             </div>
           )}
@@ -648,14 +665,12 @@ export default function CreateCapsule() {
                   {isLegacyMode ? 'Delivered after our team verifies your passing.' : 'Tell us about yourself and the person receiving this message.'}
                 </p>
                 <div className="space-y-5">
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Your name <span className="text-red-500">*</span></label>
                     <input name="senderName" value={form.senderName} onChange={handleChange}
                       className={`w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 ${accentClasses.ring}`}
                       placeholder="e.g. Gopala" />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">Your relationship to recipient <span className="text-red-500">*</span></label>
                     <div className="grid grid-cols-4 md:grid-cols-5 gap-2">
@@ -672,14 +687,12 @@ export default function CreateCapsule() {
                       ))}
                     </div>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Their name <span className="text-red-500">*</span></label>
                     <input name="recipientName" value={form.recipientName} onChange={handleChange}
                       className={`w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 ${accentClasses.ring}`}
                       placeholder="e.g. Karsanvidhun" />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Their email <span className="text-red-500">*</span></label>
                     <input name="recipientEmail" value={form.recipientEmail} onChange={handleChange} type="email"
@@ -760,7 +773,6 @@ export default function CreateCapsule() {
                   )}
 
                   <p className="text-xs text-gray-400"><span className="text-red-500">*</span> Required fields</p>
-
                   <button onClick={() => setStep(2)}
                     disabled={!form.senderName || !form.relationship || !form.recipientName || !form.recipientEmail || !isValidEmail(form.recipientEmail)}
                     className={`w-full ${accentClasses.btn} disabled:opacity-40 text-white py-4 rounded-xl font-medium transition`}>
@@ -864,7 +876,7 @@ export default function CreateCapsule() {
                   ))}
                 </div>
 
-                {/* ── TEXT — paid/legacy (unlimited) ── */}
+                {/* TEXT — paid/legacy */}
                 {messageType === 'text' && (isPaid || isLegacyMode) && (
                   <div className="space-y-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Your message <span className="text-red-500">*</span></label>
@@ -875,7 +887,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* ── TEXT — free users (5000 limit OR bypass/pay per capsule) ── */}
+                {/* TEXT — free users */}
                 {messageType === 'text' && !isPaid && !isLegacyMode && (
                   <div className="space-y-4">
                     <div>
@@ -890,13 +902,9 @@ export default function CreateCapsule() {
                             : `${wordCount} / 5,000 words${wordCount > 5000 ? ' — over limit!' : ''}`
                           }
                         </p>
-                        {!isBypassMode && capsuleCount < 3 && (
-                          <p className="text-xs text-gray-400">{capsuleCount}/3 free capsules used</p>
-                        )}
                       </div>
                     </div>
 
-                    {/* ✅ Show pay-per-capsule panel if: bypass mode OR over 5000 words */}
                     {(isBypassMode || wordCount > 5000) && (
                       <div className="border border-gray-200 rounded-xl overflow-hidden">
                         <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
@@ -932,7 +940,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* ── AUDIO — free users ── */}
+                {/* AUDIO — free users */}
                 {messageType === 'audio' && !isPaid && !isLegacyMode && (
                   <div className="space-y-4">
                     <div className={`border-2 rounded-xl p-5 text-center ${audioFile ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
@@ -983,7 +991,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* ── AUDIO — paid/legacy ── */}
+                {/* AUDIO — paid/legacy */}
                 {messageType === 'audio' && (isPaid || isLegacyMode) && (
                   <div className={`border-2 rounded-xl p-6 text-center ${audioFile ? 'border-green-300 bg-green-50' : isLegacyMode ? 'border-purple-200 bg-purple-50' : 'border-green-200 bg-green-50'}`}>
                     <div className="text-4xl mb-3">🎵</div>
@@ -1003,7 +1011,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* ── VIDEO — free users ── */}
+                {/* VIDEO — free users */}
                 {messageType === 'video' && !isPaid && !isLegacyMode && (
                   <div className="space-y-4">
                     <div className={`border-2 rounded-xl p-5 text-center ${videoFile ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
@@ -1059,7 +1067,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* ── VIDEO — paid/legacy ── */}
+                {/* VIDEO — paid/legacy */}
                 {messageType === 'video' && (isPaid || isLegacyMode) && (
                   <div className={`border-2 rounded-xl p-6 text-center ${videoFile ? 'border-green-300 bg-green-50' : isLegacyMode ? 'border-purple-200 bg-purple-50' : 'border-green-200 bg-green-50'}`}>
                     <div className="text-4xl mb-3">🎥</div>
@@ -1079,7 +1087,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {uploadProgress && (
+                {uploadProgress && !uploadBlocking && (
                   <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3">
                     <p className="text-sm text-blue-700">⏳ {uploadProgress}</p>
                   </div>
@@ -1097,7 +1105,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* ✅ Seal button — free users on text within 5000 words AND not bypass mode */}
+                {/* Seal button — free text within 5000 words, not bypass */}
                 {!isPaid && !isLegacyMode && messageType === 'text' && wordCount <= 5000 && !isBypassMode && (
                   <div className="flex gap-3 mt-5">
                     <button onClick={() => setStep(2)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
@@ -1108,22 +1116,13 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Back button for free users on audio/video */}
+                {/* Back only buttons */}
                 {!isPaid && !isLegacyMode && messageType !== 'text' && (
                   <div className="mt-4">
                     <button onClick={() => setStep(2)} className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
                   </div>
                 )}
-
-                {/* Back button for free users on text over limit (non-bypass) */}
-                {!isPaid && !isLegacyMode && messageType === 'text' && wordCount > 5000 && !isBypassMode && (
-                  <div className="mt-4">
-                    <button onClick={() => setStep(2)} className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
-                  </div>
-                )}
-
-                {/* Back button for bypass mode (always show, since pay panel handles seal) */}
-                {!isPaid && !isLegacyMode && messageType === 'text' && isBypassMode && (
+                {!isPaid && !isLegacyMode && messageType === 'text' && (wordCount > 5000 || isBypassMode) && (
                   <div className="mt-4">
                     <button onClick={() => setStep(2)} className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
                   </div>
