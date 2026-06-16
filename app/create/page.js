@@ -37,10 +37,8 @@ function calculateUnlockDate(milestone, dob) {
   return ''
 }
 
-// Tomorrow date string for min date
 const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
 
-// Per capsule pricing (display only — actual price comes from API)
 const TEXT_PRICING = {
   INR: { '1': '₹19', '5': '₹29', '10': '₹49', '10+': '₹99' },
   EUR: { '1': '€0.29', '5': '€0.49', '10': '€0.99', '10+': '€1.99' },
@@ -77,6 +75,10 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 }
 
+// ✅ Check if bypass mode (came from limit screen to pay per capsule)
+const isBypassMode = typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('bypass') === 'true'
+
 export default function CreateCapsule() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -101,13 +103,11 @@ export default function CreateCapsule() {
   const [recipientEmailError, setRecipientEmailError] = useState('')
   const [dateError, setDateError] = useState('')
 
-  // Additional recipients
   const [additionalRecipients, setAdditionalRecipients] = useState([])
   const [showAddRecipient, setShowAddRecipient] = useState(false)
   const [newRecipient, setNewRecipient] = useState({ name: '', email: '' })
   const [newRecipientEmailError, setNewRecipientEmailError] = useState('')
 
-  // Legacy mode
   const [isLegacyMode, setIsLegacyMode] = useState(false)
   const [legacyPlan, setLegacyPlan] = useState(null)
   const [legacyCapsuleCount, setLegacyCapsuleCount] = useState(0)
@@ -155,7 +155,14 @@ export default function CreateCapsule() {
             .eq('sender_id', user.id).eq('is_legacy', false)
           const count = capsules?.length || 0
           setCapsuleCount(count)
-          if (count >= 3) { setLimitReached(true); return }
+
+          // ✅ Check if user came from limit screen to pay per capsule
+          const bypassLimit = params.get('bypass') === 'true'
+
+          if (count >= 3 && !bypassLimit) {
+            setLimitReached(true)
+            return
+          }
         }
       }
 
@@ -334,7 +341,6 @@ export default function CreateCapsule() {
     }
   }
 
-  // Unified per-capsule payment handler (text + audio + video)
   const handlePerCapsulePayment = async (type) => {
     const fileToUpload = type === 'audio' ? audioFile : type === 'video' ? videoFile : null
     if ((type === 'audio' || type === 'video') && !fileToUpload) {
@@ -433,7 +439,6 @@ export default function CreateCapsule() {
     </div>
   )
 
-  // ✅ FIX — limitReached now shows pay per text capsule option instead of just upgrade
   if (limitReached) return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
       <div className="flex-1 flex items-center justify-center px-4">
@@ -461,7 +466,8 @@ export default function CreateCapsule() {
                 ))}
               </div>
               <p className="text-xs text-gray-400">⚠️ No refund if capsule deleted</p>
-              <a href="/create"
+              {/* ✅ FIXED — link to /create?bypass=true to avoid infinite loop */}
+              <a href="/create?bypass=true"
                 className="mt-3 block w-full text-center bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-semibold text-sm transition">
                 Create text capsule →
               </a>
@@ -554,10 +560,18 @@ export default function CreateCapsule() {
             </div>
           )}
 
+          {/* ✅ UPDATED — bypass mode shows different banner */}
           {!isPaid && !isLegacyMode && (
-            <div className={`rounded-xl px-4 py-2 mb-4 text-sm text-center ${capsuleCount >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
-              {capsuleCount}/3 free capsules used
-              {capsuleCount >= 2 && <a href="/upgrade" className="ml-2 font-bold underline">Upgrade for unlimited</a>}
+            <div className={`rounded-xl px-4 py-2 mb-4 text-sm text-center ${
+              isBypassMode ? 'bg-blue-50 text-blue-700' : capsuleCount >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {isBypassMode
+                ? '💳 Creating paid text capsule — unlimited words'
+                : <>
+                    {capsuleCount}/3 free capsules used
+                    {capsuleCount >= 2 && <a href="/upgrade" className="ml-2 font-bold underline">Upgrade for unlimited</a>}
+                  </>
+              }
             </div>
           )}
 
@@ -620,7 +634,6 @@ export default function CreateCapsule() {
                     {recipientEmailError && <p className="text-xs text-red-500 mt-1">{recipientEmailError}</p>}
                   </div>
 
-                  {/* Additional recipients — Forever plan only */}
                   {currentPlan === 'forever' && !isLegacyMode && (
                     <div className="border border-amber-200 rounded-xl p-4 bg-amber-50">
                       <div className="flex items-center justify-between mb-2">
@@ -729,7 +742,6 @@ export default function CreateCapsule() {
                 {['graduation','custom'].includes(form.milestone) && (
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Choose the date <span className="text-red-500">*</span></label>
-                    {/* ✅ FIX — min date is tomorrow */}
                     <input name="unlockDate" value={form.unlockDate} onChange={handleChange} type="date"
                       min={tomorrow}
                       className={`w-full border rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-300 ${dateError ? 'border-red-300' : 'border-gray-200'}`} />
@@ -738,7 +750,6 @@ export default function CreateCapsule() {
                 )}
                 <div className="flex gap-3">
                   <button onClick={() => setStep(1)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
-                  {/* ✅ FIX — validate date not in past before proceeding */}
                   <button
                     onClick={() => {
                       if (form.unlockDate && form.unlockDate <= new Date().toISOString().split('T')[0]) {
@@ -799,7 +810,7 @@ export default function CreateCapsule() {
                   ))}
                 </div>
 
-                {/* ── TEXT — paid/legacy users (unlimited) ── */}
+                {/* ── TEXT — paid/legacy (unlimited) ── */}
                 {messageType === 'text' && (isPaid || isLegacyMode) && (
                   <div className="space-y-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Your message <span className="text-red-500">*</span></label>
@@ -810,29 +821,34 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* ── TEXT — free users (with 5000 limit OR pay per capsule) ── */}
+                {/* ── TEXT — free users (5000 limit OR bypass/pay per capsule) ── */}
                 {messageType === 'text' && !isPaid && !isLegacyMode && (
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Your message <span className="text-red-500">*</span></label>
                       <textarea name="message" value={form.message} onChange={handleChange} rows={7}
-                        className={`w-full border rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 ${accentClasses.ring} ${wordCount > 5000 ? 'border-red-300' : 'border-gray-200'}`}
+                        className={`w-full border rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 ${accentClasses.ring} ${wordCount > 5000 && !isBypassMode ? 'border-red-300' : 'border-gray-200'}`}
                         placeholder={`Write something from your heart to ${form.recipientName}...`} />
                       <div className="flex justify-between items-center mt-1">
-                        <p className={`text-xs ${wordCount > 5000 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
-                          {wordCount} / 5,000 words {wordCount > 5000 ? '— over limit!' : ''}
+                        <p className={`text-xs ${wordCount > 5000 && !isBypassMode ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                          {isBypassMode
+                            ? `${wordCount} words · Unlimited`
+                            : `${wordCount} / 5,000 words${wordCount > 5000 ? ' — over limit!' : ''}`
+                          }
                         </p>
-                        {capsuleCount < 3 && (
+                        {!isBypassMode && capsuleCount < 3 && (
                           <p className="text-xs text-gray-400">{capsuleCount}/3 free capsules used</p>
                         )}
                       </div>
                     </div>
 
-                    {/* If over 5000 words — show pay per capsule to unlock unlimited */}
-                    {wordCount > 5000 && (
+                    {/* ✅ Show pay-per-capsule panel if: bypass mode OR over 5000 words */}
+                    {(isBypassMode || wordCount > 5000) && (
                       <div className="border border-gray-200 rounded-xl overflow-hidden">
                         <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Over 5,000 words — unlock unlimited</p>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            {isBypassMode ? 'Pay per capsule — unlimited words' : 'Over 5,000 words — unlock unlimited'}
+                          </p>
                         </div>
                         <div className="p-4 border-b border-gray-100">
                           <p className="font-bold text-gray-800 text-sm">💳 Pay for this capsule — unlimited words</p>
@@ -840,13 +856,13 @@ export default function CreateCapsule() {
                             One-time ·{' '}
                             {form.unlockDate
                               ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getDisplayPrice('text', form.unlockDate, isIndia)}</strong></>
-                              : <>from {isIndia ? '₹19' : '€0.49'}</>}
+                              : <>from {isIndia ? '₹19' : '€0.29'}</>}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">⚠️ No refund if capsule deleted</p>
                           <button onClick={() => handlePerCapsulePayment('text')}
                             disabled={perCapsulePaying || !form.message.trim()}
                             className="w-full mt-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition">
-                            {perCapsulePaying ? 'Processing...' : `Pay ${getDisplayPrice('text', form.unlockDate, isIndia)} & Seal — Unlimited words`}
+                            {perCapsulePaying ? 'Processing...' : !form.message.trim() ? 'Write your message first ↑' : `Pay ${getDisplayPrice('text', form.unlockDate, isIndia)} & Seal`}
                           </button>
                         </div>
                         <div className="p-4">
@@ -1015,7 +1031,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Seal button — paid/legacy users */}
+                {/* Seal button — paid/legacy */}
                 {(isPaid || isLegacyMode) && (
                   <div className="flex gap-3 mt-5">
                     <button onClick={() => setStep(isLegacyMode ? 1 : 2)}
@@ -1027,8 +1043,8 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Seal button — free users on text (within 5000 words) */}
-                {!isPaid && !isLegacyMode && messageType === 'text' && wordCount <= 5000 && (
+                {/* ✅ Seal button — free users on text within 5000 words AND not bypass mode */}
+                {!isPaid && !isLegacyMode && messageType === 'text' && wordCount <= 5000 && !isBypassMode && (
                   <div className="flex gap-3 mt-5">
                     <button onClick={() => setStep(2)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
                     <button onClick={handleSubmit} disabled={!form.message || loading}
@@ -1045,8 +1061,15 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Back button for free users on text over limit */}
-                {!isPaid && !isLegacyMode && messageType === 'text' && wordCount > 5000 && (
+                {/* Back button for free users on text over limit (non-bypass) */}
+                {!isPaid && !isLegacyMode && messageType === 'text' && wordCount > 5000 && !isBypassMode && (
+                  <div className="mt-4">
+                    <button onClick={() => setStep(2)} className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
+                  </div>
+                )}
+
+                {/* Back button for bypass mode (always show, since pay panel handles seal) */}
+                {!isPaid && !isLegacyMode && messageType === 'text' && isBypassMode && (
                   <div className="mt-4">
                     <button onClick={() => setStep(2)} className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
                   </div>
