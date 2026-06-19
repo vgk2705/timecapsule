@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
 export default function Dashboard() {
@@ -15,12 +15,16 @@ export default function Dashboard() {
   const [cancelledSub, setCancelledSub] = useState(null)
   const [capsulePayments, setCapsulePayments] = useState({})
 
-  // ✅ Filter states
+  // Filter states
   const [searchName, setSearchName] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterType, setFilterType] = useState('all')
   const [filterDate, setFilterDate] = useState('all')
   const [showFilters, setShowFilters] = useState(false)
+
+  // ✅ Dropdown menu state
+  const [showMenu, setShowMenu] = useState(false)
+  const menuRef = useRef(null)
 
   useEffect(() => {
     const getUser = async () => {
@@ -39,6 +43,17 @@ export default function Dashboard() {
       .then(r => r.json())
       .then(data => { if (data.country_code === 'IN') setIsIndia(true) })
       .catch(() => {})
+  }, [])
+
+  // ✅ Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const fetchCapsules = async (userId) => {
@@ -159,23 +174,20 @@ export default function Dashboard() {
     window.location.href = '/'
   }
 
-  // ✅ Filter logic
+  // Filter logic
   const getFilteredCapsules = () => {
     let filtered = [...capsules]
 
-    // Search by recipient name
     if (searchName.trim()) {
       filtered = filtered.filter(c =>
         c.recipient_name?.toLowerCase().includes(searchName.trim().toLowerCase())
       )
     }
 
-    // Filter by status
     if (filterStatus !== 'all') {
       filtered = filtered.filter(c => c.status === filterStatus)
     }
 
-    // Filter by type
     if (filterType !== 'all') {
       if (filterType === 'text') filtered = filtered.filter(c => !c.media_type && !c.is_legacy)
       if (filterType === 'audio') filtered = filtered.filter(c => c.media_type === 'audio')
@@ -183,7 +195,6 @@ export default function Dashboard() {
       if (filterType === 'legacy') filtered = filtered.filter(c => c.is_legacy)
     }
 
-    // Filter by date
     if (filterDate !== 'all') {
       const now = new Date()
       const msPerDay = 1000 * 60 * 60 * 24
@@ -250,7 +261,7 @@ export default function Dashboard() {
             <span className="text-2xl">⏳</span>
             <span className="text-lg md:text-xl font-semibold text-amber-900">TimeCapsule</span>
           </div>
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-2 md:gap-3">
             <span className="hidden sm:block text-sm text-gray-500">Hi, {firstName}</span>
             <span className={`text-xs px-2 py-1 rounded-full font-semibold ${planBadge.bg} ${planBadge.color}`}>
               {planBadge.label}
@@ -260,10 +271,48 @@ export default function Dashboard() {
                 Legacy 👻
               </span>
             )}
-            <a href="/pricing" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Pricing</a>
-            <a href="/account" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Account</a>
-            <a href="/support" className="text-sm text-amber-600 hover:text-amber-700 font-medium">Support</a>
-            <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">Log out</button>
+
+            {/* ✅ Three-dot dropdown menu */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-amber-100 transition text-gray-500 text-xl leading-none"
+                aria-label="Menu">
+                ⋯
+              </button>
+
+              {showMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-lg border border-gray-100 py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100 mb-1">
+                    <p className="text-sm font-medium text-gray-800 truncate">{user?.email}</p>
+                  </div>
+
+                  <a href="/manage-plan"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 transition">
+                    <span className="text-base">📋</span> Manage Plan
+                  </a>
+                  <a href="/account"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 transition">
+                    <span className="text-base">👤</span> Account Settings
+                  </a>
+                  <a href="/pricing"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 transition">
+                    <span className="text-base">💰</span> Pricing
+                  </a>
+                  <a href="/support"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 transition">
+                    <span className="text-base">💬</span> Support
+                  </a>
+
+                  <div className="border-t border-gray-100 mt-1 pt-1">
+                    <button onClick={handleLogout}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition w-full text-left">
+                      <span className="text-base">🚪</span> Log out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -356,13 +405,13 @@ export default function Dashboard() {
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4">
             <div>
               <p className="text-blue-800 font-bold text-sm">🎵 Send audio or video — pay per capsule</p>
-              <p className="text-blue-600 text-xs mt-0.5">No subscription needed · Audio from {isIndia ? '₹49' : '€2.49'} · Video from {isIndia ? '₹149' : '€4.99'}</p>
+              <p className="text-blue-600 text-xs mt-0.5">No subscription needed · Audio from {isIndia ? '₹49' : '€2.49'} · Video from {isIndia ? '₹149' : '€5.99'}</p>
             </div>
             <a href="/upgrade#per-capsule" className="bg-blue-500 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-blue-600 transition flex-shrink-0">Learn More</a>
           </div>
         )}
 
-        {/* ── Your Capsules header + New capsule button ── */}
+        {/* Your Capsules header + New capsule button */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl md:text-2xl font-bold text-gray-800">
             Your Capsules
@@ -402,10 +451,9 @@ export default function Dashboard() {
           return null
         })()}
 
-        {/* ✅ FILTERS SECTION */}
+        {/* Filters section */}
         {capsules.length > 0 && (
           <div className="mb-6">
-            {/* Search bar + toggle filter button */}
             <div className="flex gap-2 mb-2">
               <div className="flex-1 relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
@@ -440,12 +488,10 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Expanded filter panel */}
             {showFilters && (
               <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-                  {/* Status filter */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Status</label>
                     <div className="flex flex-wrap gap-1.5">
@@ -466,7 +512,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Type filter */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Type</label>
                     <div className="flex flex-wrap gap-1.5">
@@ -489,7 +534,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Date filter */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Created</label>
                     <div className="flex flex-wrap gap-1.5">
@@ -513,7 +557,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Clear filters */}
                 {activeFilterCount > 0 && (
                   <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
                     <p className="text-xs text-gray-400">
