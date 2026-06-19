@@ -100,9 +100,12 @@ export default function CreateCapsule() {
   const [dateError, setDateError] = useState('')
   const [isBypassMode, setIsBypassMode] = useState(false)
 
-  // ✅ NEW — Blocking overlay state
+  // Blocking overlay state
   const [uploadBlocking, setUploadBlocking] = useState(false)
   const [uploadBlockingMessage, setUploadBlockingMessage] = useState('')
+
+  // ✅ NEW — Preview modal state
+  const [showPreview, setShowPreview] = useState(false)
 
   const [additionalRecipients, setAdditionalRecipients] = useState([])
   const [showAddRecipient, setShowAddRecipient] = useState(false)
@@ -299,6 +302,7 @@ export default function CreateCapsule() {
     const insertData = {
       sender_name: form.senderName, relationship: form.relationship,
       recipient_name: form.recipientName, recipient_email: form.recipientEmail,
+      sender_email: user?.email || null,
       message: messageType === 'text' ? form.message : `[${messageType === 'audio' ? 'Audio' : 'Video'} message: ${mediaFileName || 'file'}]`,
       unlock_date: isLegacyMode ? null : form.unlockDate,
       status: 'locked', is_legacy: isLegacyMode,
@@ -373,7 +377,6 @@ export default function CreateCapsule() {
         theme: { color: '#f59e0b' },
         handler: async function(response) {
           setPerCapsulePaying(false)
-          // ✅ Show blocking overlay immediately after payment success
           setUploadBlocking(true)
           setUploadBlockingMessage('✅ Payment successful! Preparing your capsule...')
 
@@ -605,7 +608,7 @@ export default function CreateCapsule() {
   return (
     <div className={`min-h-screen ${accentClasses.bg} flex flex-col`}>
 
-      {/* ✅ Blocking upload overlay */}
+      {/* Blocking upload overlay */}
       {uploadBlocking && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center px-4">
           <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
@@ -616,6 +619,66 @@ export default function CreateCapsule() {
               <div className="h-2 rounded-full bg-amber-500 animate-pulse" style={{ width: '100%' }} />
             </div>
             <p className="text-xs text-red-500 font-medium">⚠️ Do not close or refresh this page</p>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ NEW — Capsule Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="text-center mb-4">
+              <div className="text-3xl mb-2">📬</div>
+              <h2 className="text-lg font-bold text-gray-800">Preview your capsule</h2>
+              <p className="text-xs text-gray-400 mt-1">Check everything before sealing</p>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-xs text-gray-400 mb-1">From</p>
+                <p className="text-sm font-medium text-gray-800">{form.senderName} ({form.relationship})</p>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-xs text-gray-400 mb-1">To</p>
+                <p className="text-sm font-medium text-gray-800">{form.recipientName}</p>
+                <p className="text-xs text-gray-500">{form.recipientEmail}</p>
+                {additionalRecipients.length > 0 && (
+                  <p className="text-xs text-amber-600 mt-1">+ {additionalRecipients.length} more recipient{additionalRecipients.length > 1 ? 's' : ''}</p>
+                )}
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-xs text-gray-400 mb-1">Unlocks</p>
+                <p className="text-sm font-medium text-gray-800">
+                  {isLegacyMode ? '👻 After team verification of your passing' : form.unlockDate}
+                </p>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <p className="text-xs text-amber-600 mb-1">
+                  {messageType === 'text' ? '📝 Message' : messageType === 'audio' ? '🎵 Audio file' : '🎥 Video file'}
+                </p>
+                {messageType === 'text' ? (
+                  <p className="text-sm text-gray-700 line-clamp-4 whitespace-pre-wrap">{form.message}</p>
+                ) : messageType === 'audio' ? (
+                  <p className="text-sm text-gray-700">{audioFile?.name} · {audioFile ? (audioFile.size / 1024 / 1024).toFixed(2) : 0} MB</p>
+                ) : (
+                  <p className="text-sm text-gray-700">{videoFile?.name} · {videoFile ? (videoFile.size / 1024 / 1024).toFixed(2) : 0} MB</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={() => setShowPreview(false)}
+                className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-medium transition hover:border-gray-300">
+                ← Edit
+              </button>
+              <button onClick={() => { setShowPreview(false); handleSubmit() }} disabled={isSealDisabled()}
+                className={`flex-1 ${accentClasses.btn} disabled:opacity-40 text-white py-3 rounded-xl text-sm font-semibold transition`}>
+                {isLegacyMode ? 'Confirm & Seal 👻' : 'Confirm & Seal 🔒'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -632,7 +695,6 @@ export default function CreateCapsule() {
             </div>
           )}
 
-          {/* ✅ Smart banner */}
           {!isPaid && !isLegacyMode && (
             <div className={`rounded-xl px-4 py-2 mb-4 text-sm text-center ${
               isBypassMode ? 'bg-blue-50 text-blue-700' : capsuleCount >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
@@ -918,7 +980,7 @@ export default function CreateCapsule() {
                             One-time ·{' '}
                             {form.unlockDate
                               ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getDisplayPrice('text', form.unlockDate, isIndia)}</strong></>
-                              : <>from {isIndia ? '₹19' : '€0.29'}</>}
+                              : <>from {isIndia ? '₹19' : '€0.99'}</>}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">⚠️ No refund if capsule deleted</p>
                           <button onClick={() => handlePerCapsulePayment('text')}
@@ -972,7 +1034,7 @@ export default function CreateCapsule() {
                           One-time ·{' '}
                           {form.unlockDate
                             ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getDisplayPrice('audio', form.unlockDate, isIndia)}</strong></>
-                            : <>from {isIndia ? '₹49' : '€1.49'}</>}
+                            : <>from {isIndia ? '₹49' : '€2.49'}</>}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">⚠️ No refund if capsule deleted</p>
                         <button onClick={() => handlePerCapsulePayment('audio')} disabled={perCapsulePaying || !audioFile}
@@ -1048,7 +1110,7 @@ export default function CreateCapsule() {
                           One-time · Price by file size + delivery ·{' '}
                           {form.unlockDate
                             ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getDisplayPrice('video', form.unlockDate, isIndia)}</strong></>
-                            : <>from {isIndia ? '₹149' : '€4.99'}</>}
+                            : <>from {isIndia ? '₹149' : '€5.99'}</>}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">⚠️ No refund if capsule deleted</p>
                         <button onClick={() => handlePerCapsulePayment('video')} disabled={perCapsulePaying || !videoFile}
@@ -1093,25 +1155,25 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Seal button — paid/legacy */}
+                {/* ✅ Seal button — paid/legacy — now opens preview instead of submitting directly */}
                 {(isPaid || isLegacyMode) && (
                   <div className="flex gap-3 mt-5">
                     <button onClick={() => setStep(isLegacyMode ? 1 : 2)}
                       className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
-                    <button onClick={handleSubmit} disabled={isSealDisabled()}
+                    <button onClick={() => setShowPreview(true)} disabled={isSealDisabled()}
                       className={`flex-1 ${accentClasses.btn} disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm`}>
-                      {loading ? (uploadProgress ? 'Uploading...' : 'Sealing...') : isLegacyMode ? 'Seal legacy capsule 👻' : 'Seal capsule 🔒'}
+                      Preview & Seal →
                     </button>
                   </div>
                 )}
 
-                {/* Seal button — free text within 5000 words, not bypass */}
+                {/* ✅ Seal button — free text within 5000 words, not bypass — now opens preview */}
                 {!isPaid && !isLegacyMode && messageType === 'text' && wordCount <= 5000 && !isBypassMode && (
                   <div className="flex gap-3 mt-5">
                     <button onClick={() => setStep(2)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
-                    <button onClick={handleSubmit} disabled={!form.message || loading}
+                    <button onClick={() => setShowPreview(true)} disabled={!form.message || loading}
                       className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-3 rounded-xl font-medium transition text-sm">
-                      {loading ? 'Sealing...' : 'Seal capsule 🔒'}
+                      Preview & Seal →
                     </button>
                   </div>
                 )}

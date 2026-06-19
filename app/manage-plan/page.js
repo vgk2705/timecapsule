@@ -5,35 +5,83 @@ import { supabase } from '../supabase'
 
 export default function ManagePlan() {
   const router = useRouter()
+  const [user, setUser] = useState(null)
   const [subscription, setSubscription] = useState(null)
   const [legacyPlan, setLegacyPlan] = useState(null)
   const [legacyContact, setLegacyContact] = useState(null)
+  const [storageUsage, setStorageUsage] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  const [cancelling, setCancelling] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [cancelError, setCancelError] = useState('')
 
   useEffect(() => {
     const getData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
+      setUser(user)
 
-      const [subRes, legacyRes, contactRes] = await Promise.all([
+      const [subRes, legacyRes, contactRes, storageRes] = await Promise.all([
         supabase.from('subscriptions').select('*').eq('user_id', user.id).eq('status', 'active').single(),
         supabase.from('legacy_plans').select('*').eq('user_id', user.id).eq('status', 'active').single(),
         supabase.from('legacy_contacts').select('*').eq('user_id', user.id).single(),
+        supabase.from('storage_usage').select('*').eq('user_id', user.id).single(),
       ])
 
       setSubscription(subRes.data || null)
       setLegacyPlan(legacyRes.data || null)
       setLegacyContact(contactRes.data || null)
+      setStorageUsage(storageRes.data || { total_bytes: 0, audio_bytes: 0, video_bytes: 0 })
       setLoading(false)
     }
     getData()
   }, [])
+
+  const handleCancelSubscription = async () => {
+    setCancelling(true)
+    setCancelError('')
+    try {
+      const res = await fetch('/api/razorpay-cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionId: subscription.razorpay_subscription_id,
+          userId: user.id,
+        })
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+
+      setShowCancelConfirm(false)
+      window.location.reload()
+    } catch (err) {
+      setCancelError(err.message || 'Failed to cancel subscription. Please contact support.')
+    }
+    setCancelling(false)
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-amber-50 flex items-center justify-center">
       <p className="text-gray-400">Loading your plan...</p>
     </div>
   )
+
+  const currentPlan = subscription?.plan || 'free'
+
+  // Storage limit calculation
+  const limitBytes = currentPlan === 'forever'
+    ? 5 * 1024 * 1024 * 1024
+    : currentPlan === 'loved'
+    ? 2 * 1024 * 1024 * 1024
+    : legacyPlan
+    ? 1 * 1024 * 1024 * 1024
+    : 0
+
+  const usedBytes = storageUsage?.total_bytes || 0
+  const usedMB = (usedBytes / 1024 / 1024).toFixed(1)
+  const limitGB = limitBytes > 0 ? (limitBytes / 1024 / 1024 / 1024).toFixed(0) : 0
+  const percentUsed = limitBytes > 0 ? Math.min(100, (usedBytes / limitBytes) * 100) : 0
 
   return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
@@ -43,7 +91,10 @@ export default function ManagePlan() {
             <span className="text-2xl">⏳</span>
             <span className="text-lg font-semibold text-amber-900">TimeCapsule</span>
           </div>
-          <a href="/dashboard" className="text-sm text-amber-600 hover:underline">← Dashboard</a>
+          <div className="flex items-center gap-3">
+            <a href="/account" className="text-sm text-gray-500 hover:text-gray-700">Account</a>
+            <a href="/dashboard" className="text-sm text-amber-600 hover:underline">← Dashboard</a>
+          </div>
         </div>
       </header>
 
@@ -90,9 +141,32 @@ export default function ManagePlan() {
                 )}
               </div>
 
-              <a href="/support" className="inline-block border border-red-200 text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl text-sm font-medium transition">
-                Contact Support to Cancel
-              </a>
+              {/* Cancel subscription flow */}
+              {!showCancelConfirm ? (
+                <button onClick={() => setShowCancelConfirm(true)}
+                  className="inline-block border border-red-200 text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl text-sm font-medium transition">
+                  Cancel subscription
+                </button>
+              ) : (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-sm text-red-700 font-bold mb-1">⚠️ Are you sure?</p>
+                  <p className="text-xs text-red-600 mb-3">
+                    Your audio/video capsules will enter a 180-day grace period. Text capsules are kept forever.
+                    You'll lose access to unlimited capsules{subscription.plan === 'forever' ? ' and multiple recipients' : ''} immediately.
+                  </p>
+                  {cancelError && <p className="text-xs text-red-700 font-medium mb-2">{cancelError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={handleCancelSubscription} disabled={cancelling}
+                      className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white py-2 rounded-xl text-sm font-semibold transition">
+                      {cancelling ? 'Cancelling...' : 'Yes, cancel subscription'}
+                    </button>
+                    <button onClick={() => { setShowCancelConfirm(false); setCancelError('') }}
+                      className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-xl text-sm transition hover:bg-gray-50">
+                      Keep my plan
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-white rounded-2xl p-6 shadow-sm text-center border border-gray-100">
@@ -102,6 +176,46 @@ export default function ManagePlan() {
               <a href="/upgrade" className="inline-block bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-xl font-semibold text-sm transition">
                 Upgrade Now
               </a>
+            </div>
+          )}
+
+          {/* Storage Usage */}
+          {(subscription || legacyPlan) && limitBytes > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="text-base font-bold text-gray-800 mb-4">💾 Storage Usage</h2>
+
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-600">
+                  {usedMB < 1000 ? `${usedMB} MB` : `${(usedMB / 1024).toFixed(2)} GB`} used
+                </span>
+                <span className="text-gray-400">of {limitGB} GB</span>
+              </div>
+
+              <div className="w-full bg-gray-100 rounded-full h-3 mb-4 overflow-hidden">
+                <div
+                  className={`h-3 rounded-full transition-all ${
+                    percentUsed >= 90 ? 'bg-red-500' : percentUsed >= 70 ? 'bg-orange-400' : 'bg-amber-500'
+                  }`}
+                  style={{ width: `${percentUsed}%` }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-gray-400 mb-1">🎵 Audio</p>
+                  <p className="font-semibold text-gray-700">{((storageUsage?.audio_bytes || 0) / 1024 / 1024).toFixed(1)} MB</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-gray-400 mb-1">🎥 Video</p>
+                  <p className="font-semibold text-gray-700">{((storageUsage?.video_bytes || 0) / 1024 / 1024).toFixed(1)} MB</p>
+                </div>
+              </div>
+
+              {percentUsed >= 90 && (
+                <p className="text-xs text-red-500 mt-3">
+                  ⚠️ Almost full! Delete old capsules or upgrade your plan.
+                </p>
+              )}
             </div>
           )}
 
@@ -129,9 +243,9 @@ export default function ManagePlan() {
               </ul>
 
               <div className="bg-purple-50 rounded-xl p-3 text-sm text-purple-700 mb-4">
-                <p>Age at purchase: <strong>{legacyPlan.user_age} years</strong></p>
+                <p>Age group at purchase: <strong>{legacyPlan.user_age_group}</strong></p>
                 <p>Storage until: <strong>~{new Date().getFullYear() + legacyPlan.years_covered}</strong></p>
-                <p>Paid: <strong>₹{legacyPlan.amount_paid?.toLocaleString('en-IN')}</strong></p>
+                <p>Paid: <strong>{legacyPlan.currency === 'INR' ? '₹' : '€'}{legacyPlan.amount_paid?.toLocaleString('en-IN')}</strong></p>
               </div>
 
               {legacyContact && (
