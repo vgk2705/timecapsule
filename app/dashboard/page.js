@@ -355,7 +355,7 @@ export default function Dashboard() {
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4">
             <div>
               <p className="text-blue-800 font-bold text-sm">🎵 Send audio or video — pay per capsule</p>
-              <p className="text-blue-600 text-xs mt-0.5">No subscription needed · Audio from {isIndia ? '₹49' : '€1.49'} · Video from {isIndia ? '₹149' : '€4.99'}</p>
+              <p className="text-blue-600 text-xs mt-0.5">No subscription needed · Audio from {isIndia ? '₹49' : '€2.49'} · Video from {isIndia ? '₹149' : '€4.99'}</p>
             </div>
             <a href="/upgrade#per-capsule" className="bg-blue-500 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-blue-600 transition flex-shrink-0">Learn More</a>
           </div>

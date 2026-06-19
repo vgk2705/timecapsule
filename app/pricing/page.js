@@ -209,20 +209,20 @@ export default function PricingPage() {
               <li className="text-gray-600">
                 📝 Text — pay per capsule
                 <span className="ml-1 text-xs text-amber-600 font-semibold">
-                  {isIndia ? 'from ₹19' : 'from €0.29'}
+                  {isIndia ? 'from ₹19' : 'from €0.99'}
                 </span>
                 <span className="ml-1 text-xs text-gray-400">unlimited words</span>
               </li>
               <li className="text-gray-500">
                 🎵 Audio — pay per capsule
                 <span className="ml-1 text-xs text-amber-600 font-semibold">
-                  {isIndia ? 'from ₹49' : 'from €1.49'}
+                  {isIndia ? 'from ₹49' : 'from €2.49'}
                 </span>
               </li>
               <li className="text-gray-500">
                 🎥 Video — pay per capsule
                 <span className="ml-1 text-xs text-amber-600 font-semibold">
-                  {isIndia ? 'from ₹149' : 'from €4.99'}
+                  {isIndia ? 'from ₹149' : 'from €5.99'}
                 </span>
               </li>
               <li className="text-gray-300">❌ Legacy plan</li>
@@ -352,18 +352,18 @@ export default function PricingPage() {
               {/* ✅ Updated grid — now includes text pricing rows */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: '📝 Text · 1yr', inr: '₹19', eur: '€0.29', note: 'unlimited words' },
-                  { label: '📝 Text · 5yr', inr: '₹29', eur: '€0.49', note: 'unlimited words' },
-                  { label: '📝 Text · 10yr', inr: '₹49', eur: '€0.99', note: 'unlimited words' },
-                  { label: '📝 Text · 10yr+', inr: '₹99', eur: '€1.99', note: 'unlimited words' },
-                  { label: '🎵 Audio · 1yr', inr: '₹49', eur: '€1.49' },
-                  { label: '🎵 Audio · 5yr', inr: '₹99', eur: '€2.99' },
-                  { label: '🎵 Audio · 10yr', inr: '₹199', eur: '€5.99' },
-                  { label: '🎵 Audio · 10yr+', inr: '₹399', eur: '€11.99' },
-                  { label: '🎥 Video · 1yr (≤100MB)', inr: '₹149', eur: '€4.99' },
-                  { label: '🎥 Video · 5yr (≤100MB)', inr: '₹299', eur: '€8.99' },
-                  { label: '🎥 Video · 1yr (101-500MB)', inr: '₹299', eur: '€9.99' },
-                  { label: '🎥 Video · 5yr (101-500MB)', inr: '₹599', eur: '€19.99' },
+                  { label: '📝 Text · 1yr', inr: '₹19', eur: '€0.99', note: 'unlimited words' },
+                  { label: '📝 Text · 5yr', inr: '₹29', eur: '€1.49', note: 'unlimited words' },
+                  { label: '📝 Text · 10yr', inr: '₹49', eur: '€1.99', note: 'unlimited words' },
+                  { label: '📝 Text · 10yr+', inr: '₹99', eur: '€2.99', note: 'unlimited words' },
+                  { label: '🎵 Audio · 1yr', inr: '₹49', eur: '€2.49' },
+                  { label: '🎵 Audio · 5yr', inr: '₹99', eur: '€3.99' },
+                  { label: '🎵 Audio · 10yr', inr: '₹199', eur: '€6.99' },
+                  { label: '🎵 Audio · 10yr+', inr: '₹399', eur: '€12.99' },
+                  { label: '🎥 Video · 1yr (≤100MB)', inr: '₹149', eur: '€5.99' },
+                  { label: '🎥 Video · 5yr (≤100MB)', inr: '₹299', eur: '€9.99' },
+                  { label: '🎥 Video · 1yr (101-500MB)', inr: '₹299', eur: '€10.99' },
+                  { label: '🎥 Video · 5yr (101-500MB)', inr: '₹599', eur: '€20.99' },
                 ].map((row, i) => (
                   <div key={i} className="bg-white rounded-xl p-3 border border-amber-100 text-center">
                     <p className="text-xs text-gray-500 mb-1">{row.label}</p>

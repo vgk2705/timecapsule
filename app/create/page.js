@@ -41,15 +41,15 @@ const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
 
 const TEXT_PRICING = {
   INR: { '1': '₹19', '5': '₹29', '10': '₹49', '10+': '₹99' },
-  EUR: { '1': '€0.29', '5': '€0.49', '10': '€0.99', '10+': '€1.99' },
+  EUR: { '1': '€0.99', '5': '€1.49', '10': '€1.99', '10+': '€2.99' },
 }
 const AUDIO_PRICING = {
   INR: { '1': '₹49', '5': '₹99', '10': '₹199', '10+': '₹399' },
-  EUR: { '1': '€1.49', '5': '€2.99', '10': '€5.99', '10+': '€11.99' },
+  EUR: { '1': '€2.49', '5': '€3.99', '10': '€6.99', '10+': '€12.99' },
 }
 const VIDEO_PRICING = {
   INR: { '1': '₹149', '5': '₹299', '10': '₹499', '10+': '₹999' },
-  EUR: { '1': '€4.99', '5': '€8.99', '10': '€14.99', '10+': '€29.99' },
+  EUR: { '1': '€5.99', '5': '€9.99', '10': '€15.99', '10+': '€30.99' },
 }
 
 function getDeliveryYears(unlockDate) {
@@ -466,10 +466,10 @@ export default function CreateCapsule() {
               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">📝 Text capsule — unlimited words</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: '1 year', inr: '₹19', eur: '€0.29' },
-                  { label: '1-5 years', inr: '₹29', eur: '€0.49' },
-                  { label: '5-10 years', inr: '₹49', eur: '€0.99' },
-                  { label: '10+ years', inr: '₹99', eur: '€1.99' },
+                  { label: '1 year', inr: '₹19', eur: '€0.99' },
+                  { label: '1-5 years', inr: '₹29', eur: '€1.49' },
+                  { label: '5-10 years', inr: '₹49', eur: '€1.99' },
+                  { label: '10+ years', inr: '₹99', eur: '€2.99' },
                 ].map((r, i) => (
                   <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
                     <span className="text-gray-500">{r.label}</span>
@@ -483,10 +483,10 @@ export default function CreateCapsule() {
               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">🎵 Audio capsule — max 50MB</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: '1 year', inr: '₹49', eur: '€1.49' },
-                  { label: '1-5 years', inr: '₹99', eur: '€2.99' },
-                  { label: '5-10 years', inr: '₹199', eur: '€5.99' },
-                  { label: '10+ years', inr: '₹399', eur: '€11.99' },
+                  { label: '1 year', inr: '₹49', eur: '€2.49' },
+                  { label: '1-5 years', inr: '₹99', eur: '€3.99' },
+                  { label: '5-10 years', inr: '₹199', eur: '€6.99' },
+                  { label: '10+ years', inr: '₹399', eur: '€12.99' },
                 ].map((r, i) => (
                   <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
                     <span className="text-gray-500">{r.label}</span>
@@ -500,10 +500,10 @@ export default function CreateCapsule() {
               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">🎥 Video capsule — price by file size</p>
               <div className="space-y-1">
                 {[
-                  { label: '≤100MB · 1yr', inr: '₹149', eur: '€4.99' },
-                  { label: '≤100MB · 5yr', inr: '₹299', eur: '€8.99' },
-                  { label: '101-500MB · 1yr', inr: '₹299', eur: '€9.99' },
-                  { label: '501MB-2GB · 1yr', inr: '₹599', eur: '€19.99' },
+                  { label: '≤100MB · 1yr', inr: '₹149', eur: '€5.99' },
+                  { label: '≤100MB · 5yr', inr: '₹299', eur: '€9.99' },
+                  { label: '101-500MB · 1yr', inr: '₹299', eur: '€10.99' },
+                  { label: '501MB-2GB · 1yr', inr: '₹599', eur: '€20.99' },
                 ].map((r, i) => (
                   <div key={i} className="flex justify-between items-center bg-amber-50 rounded-lg px-3 py-2 text-xs">
                     <span className="text-gray-500">{r.label}</span>

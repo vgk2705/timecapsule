@@ -258,10 +258,10 @@ export default function UpgradePage() {
              <p className="text-xs text-gray-500 mb-3">Unlimited words · No storage limit</p>
              <div className="space-y-2 text-sm">
                 {[
-                  { label: 'Deliver within 1 year', inr: '₹19', eur: '€0.29' },
-                  { label: 'Deliver in 1-5 years', inr: '₹29', eur: '€0.49' },
-                  { label: 'Deliver in 5-10 years', inr: '₹49', eur: '€0.99' },
-                  { label: 'Deliver in 10+ years', inr: '₹99', eur: '€1.99' },
+                  { label: 'Deliver within 1 year', inr: '₹19', eur: '€0.99' },
+                  { label: 'Deliver in 1-5 years', inr: '₹29', eur: '€1.49' },
+                  { label: 'Deliver in 5-10 years', inr: '₹49', eur: '€1.99' },
+                  { label: 'Deliver in 10+ years', inr: '₹99', eur: '€2.99' },
                  ].map((row, i) => (
                    <div key={i} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
                     <span className="text-gray-500">{row.label}</span>
@@ -275,10 +275,10 @@ export default function UpgradePage() {
               <p className="font-bold text-gray-800 mb-3">🎵 Audio (max 50MB)</p>
               <div className="space-y-2 text-sm">
                 {[
-                  { label: 'Deliver within 1 year', inr: '₹49', eur: '€1.49' },
-                  { label: 'Deliver in 1-5 years', inr: '₹99', eur: '€2.99' },
-                  { label: 'Deliver in 5-10 years', inr: '₹199', eur: '€5.99' },
-                  { label: 'Deliver in 10+ years', inr: '₹399', eur: '€11.99' },
+                  { label: 'Deliver within 1 year', inr: '₹49', eur: '€2.49' },
+                  { label: 'Deliver in 1-5 years', inr: '₹99', eur: '€3.99' },
+                  { label: 'Deliver in 5-10 years', inr: '₹199', eur: '€6.99' },
+                  { label: 'Deliver in 10+ years', inr: '₹399', eur: '€12.99' },
                 ].map((row, i) => (
                   <div key={i} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
                     <span className="text-gray-500">{row.label}</span>
@@ -294,9 +294,9 @@ export default function UpgradePage() {
               <div className="space-y-2 text-xs">
                 <p className="font-medium text-gray-600">Up to 100MB:</p>
                 {[
-                  { label: '1 yr', inr: '₹149', eur: '€4.99' },
-                  { label: '5 yr', inr: '₹299', eur: '€8.99' },
-                  { label: '10 yr', inr: '₹499', eur: '€16.99' },
+                  { label: '1 yr', inr: '₹149', eur: '€5.99' },
+                  { label: '5 yr', inr: '₹299', eur: '€9.99' },
+                  { label: '10 yr', inr: '₹499', eur: '€17.99' },
                 ].map((row, i) => (
                   <div key={i} className="flex justify-between py-0.5">
                     <span className="text-gray-500">{row.label}</span>
@@ -305,9 +305,9 @@ export default function UpgradePage() {
                 ))}
                 <p className="font-medium text-gray-600 mt-2">101MB - 500MB:</p>
                 {[
-                  { label: '1 yr', inr: '₹299', eur: '€9.99' },
-                  { label: '5 yr', inr: '₹599', eur: '€19.99' },
-                  { label: '10 yr', inr: '₹999', eur: '€33.99' },
+                  { label: '1 yr', inr: '₹299', eur: '€10.99' },
+                  { label: '5 yr', inr: '₹599', eur: '€20.99' },
+                  { label: '10 yr', inr: '₹999', eur: '€34.99' },
                 ].map((row, i) => (
                   <div key={i} className="flex justify-between py-0.5">
                     <span className="text-gray-500">{row.label}</span>
@@ -316,9 +316,9 @@ export default function UpgradePage() {
                 ))}
                 <p className="font-medium text-gray-600 mt-2">501MB - 2GB:</p>
                 {[
-                  { label: '1 yr', inr: '₹599', eur: '€19.99' },
-                  { label: '5 yr', inr: '₹1,199', eur: '€39.99' },
-                  { label: '10 yr', inr: '₹1,999', eur: '€66.99' },
+                  { label: '1 yr', inr: '₹599', eur: '€20.99' },
+                  { label: '5 yr', inr: '₹1,199', eur: '€40.99' },
+                  { label: '10 yr', inr: '₹1,999', eur: '€67.99' },
                 ].map((row, i) => (
                   <div key={i} className="flex justify-between py-0.5">
                     <span className="text-gray-500">{row.label}</span>
