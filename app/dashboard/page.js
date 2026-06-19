@@ -261,6 +261,7 @@ export default function Dashboard() {
               </span>
             )}
             <a href="/pricing" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Pricing</a>
+            <a href="/account" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Account</a>
             <a href="/support" className="text-sm text-amber-600 hover:text-amber-700 font-medium">Support</a>
             <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600">Log out</button>
           </div>
