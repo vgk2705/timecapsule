@@ -72,27 +72,29 @@ export default function LegacySetup() {
         description: `Legacy plan — ${data.years} years storage`,
         prefill: { email: user.email, name: user.user_metadata?.name || '' },
         theme: { color: '#7c3aed' },
-        // ✅ FIX — check insert result before advancing to step 3
+        // ✅ FIX — store age group instead of dob/age, drop storage_limit_bytes
         handler: async function(response) {
           const { data: insertedPlan, error: insertError } = await supabase
             .from('legacy_plans')
             .insert({
               user_id: user.id,
-              user_dob: userDob,
-              user_age: data.age,
+              user_age_group: ageInfo.group,
               years_covered: data.years,
               amount_paid: data.amount / 100,
               currency: 'INR',
               payment_provider: 'razorpay',
               payment_id: response.razorpay_payment_id,
               status: 'active',
-              storage_limit_bytes: 1073741824
             })
             .select()
 
           if (insertError) {
             console.error('Legacy plan insert failed:', insertError)
-            alert('Payment successful but saving failed. Please contact support immediately with this payment ID: ' + response.razorpay_payment_id)
+            alert(
+              'Payment successful but saving failed.\n\n' +
+              'Error: ' + insertError.message + '\n\n' +
+              'Please contact support with payment ID: ' + response.razorpay_payment_id
+            )
             setLoading(false)
             return
           }
