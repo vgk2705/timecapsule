@@ -72,19 +72,31 @@ export default function LegacySetup() {
         description: `Legacy plan — ${data.years} years storage`,
         prefill: { email: user.email, name: user.user_metadata?.name || '' },
         theme: { color: '#7c3aed' },
+        // ✅ FIX — check insert result before advancing to step 3
         handler: async function(response) {
-          await supabase.from('legacy_plans').insert({
-            user_id: user.id,
-            user_dob: userDob,
-            user_age: data.age,
-            years_covered: data.years,
-            amount_paid: data.amount / 100,
-            currency: 'INR',
-            payment_provider: 'razorpay',
-            payment_id: response.razorpay_payment_id,
-            status: 'active',
-            storage_limit_bytes: 1073741824
-          })
+          const { data: insertedPlan, error: insertError } = await supabase
+            .from('legacy_plans')
+            .insert({
+              user_id: user.id,
+              user_dob: userDob,
+              user_age: data.age,
+              years_covered: data.years,
+              amount_paid: data.amount / 100,
+              currency: 'INR',
+              payment_provider: 'razorpay',
+              payment_id: response.razorpay_payment_id,
+              status: 'active',
+              storage_limit_bytes: 1073741824
+            })
+            .select()
+
+          if (insertError) {
+            console.error('Legacy plan insert failed:', insertError)
+            alert('Payment successful but saving failed. Please contact support immediately with this payment ID: ' + response.razorpay_payment_id)
+            setLoading(false)
+            return
+          }
+
           setHasLegacyPlan(true)
           setStep(3)
         },
@@ -122,7 +134,6 @@ export default function LegacySetup() {
   }
 
   const handleSaveLegacyContact = async () => {
-    // Validate all contacts
     const validContacts = contacts.filter(c => c.name && c.email && c.mobile)
     if (validContacts.length < 2) {
       alert('Please fill in at least 2 legacy contacts with name, email and mobile.')
@@ -131,13 +142,11 @@ export default function LegacySetup() {
 
     setLoading(true)
     try {
-      // Delete existing contacts for this user
       await supabase
         .from('legacy_contacts')
         .delete()
         .eq('user_id', user.id)
 
-      // Insert all contacts
       for (let i = 0; i < validContacts.length; i++) {
         const contact = validContacts[i]
         await supabase.from('legacy_contacts').insert({
@@ -151,7 +160,6 @@ export default function LegacySetup() {
           is_primary: i === 0,
         })
 
-        // Send welcome/notification email to each contact
         await fetch('/api/notify-legacy-contact', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -164,7 +172,6 @@ export default function LegacySetup() {
         })
       }
 
-      // Set up check-in
       const nextCheckin = new Date()
       nextCheckin.setMonth(nextCheckin.getMonth() + 6)
       await supabase.from('checkins').upsert({
