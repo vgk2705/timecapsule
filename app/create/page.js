@@ -104,8 +104,12 @@ export default function CreateCapsule() {
   const [uploadBlocking, setUploadBlocking] = useState(false)
   const [uploadBlockingMessage, setUploadBlockingMessage] = useState('')
 
-  // ✅ NEW — Preview modal state
+  // Preview modal state
   const [showPreview, setShowPreview] = useState(false)
+
+  // ✅ NEW — Storage full detection
+  const [storageFull, setStorageFull] = useState(false)
+  const [storageInfo, setStorageInfo] = useState(null)
 
   const [additionalRecipients, setAdditionalRecipients] = useState([])
   const [showAddRecipient, setShowAddRecipient] = useState(false)
@@ -154,6 +158,12 @@ export default function CreateCapsule() {
         const legacyCount = legacyCapsules?.length || 0
         setLegacyCapsuleCount(legacyCount)
         if (legacyCount >= 3) { setLegacyLimitReached(true); return }
+
+        // ✅ Check legacy storage
+        const usedBytes = legacy.storage_used_bytes || 0
+        const limitBytes = 1 * 1024 * 1024 * 1024 // 1GB
+        setStorageInfo({ usedBytes, limitBytes })
+        if (usedBytes >= limitBytes) setStorageFull(true)
       } else {
         if (!paid) {
           const { data: capsules } = await supabase
@@ -165,6 +175,18 @@ export default function CreateCapsule() {
             setLimitReached(true)
             return
           }
+        } else {
+          // ✅ Check storage for paid (Loved/Forever) users
+          const { data: usage } = await supabase
+            .from('storage_usage')
+            .select('total_bytes')
+            .eq('user_id', user.id)
+            .single()
+
+          const usedBytes = usage?.total_bytes || 0
+          const limitBytes = sub.plan === 'forever' ? 5 * 1024 * 1024 * 1024 : 2 * 1024 * 1024 * 1024
+          setStorageInfo({ usedBytes, limitBytes })
+          if (usedBytes >= limitBytes) setStorageFull(true)
         }
       }
 
@@ -309,7 +331,7 @@ export default function CreateCapsule() {
       media_type: messageType !== 'text' ? messageType : null,
       media_url: mediaUrl, media_file_name: mediaFileName, media_file_size: mediaFileSize,
       recipients: currentPlan === 'forever' && additionalRecipients.length > 0 ? additionalRecipients : [],
-      plan_type: isLegacyMode ? 'legacy' : currentPlan, // ✅ NEW — track plan at creation time
+      plan_type: isLegacyMode ? 'legacy' : currentPlan,
     }
     if (user) insertData.sender_id = user.id
     const { data, error } = await supabase.from('capsules').insert(insertData).select()
@@ -334,7 +356,6 @@ export default function CreateCapsule() {
     let mediaUrl = null, mediaFileName = null, mediaFileSize = null
     const fileToUpload = messageType === 'audio' ? audioFile : messageType === 'video' ? videoFile : null
 
-    // ✅ Show blocking overlay for file uploads (Loved/Forever/Legacy)
     if (fileToUpload) {
       setUploadBlocking(true)
       setUploadBlockingMessage(`Uploading ${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB to cloud...`)
@@ -357,7 +378,7 @@ export default function CreateCapsule() {
       setUploadBlocking(false)
       alert('Something went wrong saving your capsule. Please try again.')
       setLoading(false); setUploadProgress('')
-   }
+    }
   }
 
   const handlePerCapsulePayment = async (type) => {
@@ -621,7 +642,6 @@ export default function CreateCapsule() {
   return (
     <div className={`min-h-screen ${accentClasses.bg} flex flex-col`}>
 
-      {/* Blocking upload overlay */}
       {uploadBlocking && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center px-4">
           <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
@@ -636,7 +656,6 @@ export default function CreateCapsule() {
         </div>
       )}
 
-      {/* ✅ NEW — Capsule Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center px-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -645,13 +664,11 @@ export default function CreateCapsule() {
               <h2 className="text-lg font-bold text-gray-800">Preview your capsule</h2>
               <p className="text-xs text-gray-400 mt-1">Check everything before sealing</p>
             </div>
-
             <div className="space-y-3 mb-5">
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs text-gray-400 mb-1">From</p>
                 <p className="text-sm font-medium text-gray-800">{form.senderName} ({form.relationship})</p>
               </div>
-
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs text-gray-400 mb-1">To</p>
                 <p className="text-sm font-medium text-gray-800">{form.recipientName}</p>
@@ -660,14 +677,12 @@ export default function CreateCapsule() {
                   <p className="text-xs text-amber-600 mt-1">+ {additionalRecipients.length} more recipient{additionalRecipients.length > 1 ? 's' : ''}</p>
                 )}
               </div>
-
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs text-gray-400 mb-1">Unlocks</p>
                 <p className="text-sm font-medium text-gray-800">
                   {isLegacyMode ? '👻 After team verification of your passing' : form.unlockDate}
                 </p>
               </div>
-
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                 <p className="text-xs text-amber-600 mb-1">
                   {messageType === 'text' ? '📝 Message' : messageType === 'audio' ? '🎵 Audio file' : '🎥 Video file'}
@@ -681,7 +696,6 @@ export default function CreateCapsule() {
                 )}
               </div>
             </div>
-
             <div className="flex gap-2">
               <button onClick={() => setShowPreview(false)}
                 className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-medium transition hover:border-gray-300">
@@ -718,6 +732,17 @@ export default function CreateCapsule() {
                   ? <>{capsuleCount}/3 free capsules used</>
                   : null
               }
+            </div>
+          )}
+
+          {/* ✅ NEW — Storage full banner */}
+          {(isPaid || isLegacyMode) && storageFull && storageInfo && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
+              <p className="text-red-700 font-bold text-sm">⚠️ Storage full</p>
+              <p className="text-red-600 text-xs mt-0.5">
+                {(storageInfo.usedBytes / 1024 / 1024 / 1024).toFixed(2)}GB of {(storageInfo.limitBytes / 1024 / 1024 / 1024).toFixed(0)}GB used.
+                Delete old capsules or pay per capsule for new audio/video.
+              </p>
             </div>
           )}
 
@@ -1066,8 +1091,8 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* AUDIO — paid/legacy */}
-                {messageType === 'audio' && (isPaid || isLegacyMode) && (
+                {/* AUDIO — paid/legacy, storage NOT full */}
+                {messageType === 'audio' && (isPaid || isLegacyMode) && !storageFull && (
                   <div className={`border-2 rounded-xl p-6 text-center ${audioFile ? 'border-green-300 bg-green-50' : isLegacyMode ? 'border-purple-200 bg-purple-50' : 'border-green-200 bg-green-50'}`}>
                     <div className="text-4xl mb-3">🎵</div>
                     <h3 className="text-base font-bold text-gray-800 mb-2">Audio Message</h3>
@@ -1083,6 +1108,43 @@ export default function CreateCapsule() {
                       </div>
                     )}
                     <p className="text-gray-400 text-xs mt-3">MP3, WAV, M4A · Max 50MB · Uploaded securely to cloud</p>
+                  </div>
+                )}
+
+                {/* ✅ NEW — AUDIO — paid/legacy, storage FULL, fallback to per-capsule */}
+                {messageType === 'audio' && (isPaid || isLegacyMode) && storageFull && (
+                  <div className="space-y-4">
+                    <div className={`border-2 rounded-xl p-5 text-center ${audioFile ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                      <div className="text-3xl mb-2">🎵</div>
+                      <p className="text-sm font-medium text-gray-700 mb-3">Select your audio file</p>
+                      {!audioFile ? (
+                        <>
+                          <input type="file" accept="audio/*" id="audio-input-storagefull" onChange={e => setAudioFile(e.target.files[0])} className="hidden" />
+                          <label htmlFor="audio-input-storagefull" className="inline-block cursor-pointer border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition">
+                            Choose audio file
+                          </label>
+                        </>
+                      ) : (
+                        <div className="bg-white rounded-xl p-3 border border-green-200">
+                          <p className="text-sm text-green-700 font-medium">✅ {audioFile.name}</p>
+                          <p className="text-xs text-gray-400 mt-1">{(audioFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                          <button onClick={() => setAudioFile(null)} className="mt-2 text-xs text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded-lg transition">🗑️ Remove file</button>
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-400 mt-2">MP3, WAV, M4A · Max 50MB</p>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                      <p className="font-bold text-gray-800 text-sm">💳 Pay per capsule (storage full)</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {form.unlockDate
+                          ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getDisplayPrice('audio', form.unlockDate, isIndia)}</strong></>
+                          : <>from {isIndia ? '₹49' : '€2.49'}</>}
+                      </p>
+                      <button onClick={() => handlePerCapsulePayment('audio')} disabled={perCapsulePaying || !audioFile}
+                        className="w-full mt-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition">
+                        {perCapsulePaying ? 'Processing...' : !audioFile ? 'Select audio file first ↑' : `Pay ${getDisplayPrice('audio', form.unlockDate, isIndia)} & Seal`}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1142,8 +1204,8 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* VIDEO — paid/legacy */}
-                {messageType === 'video' && (isPaid || isLegacyMode) && (
+                {/* VIDEO — paid/legacy, storage NOT full */}
+                {messageType === 'video' && (isPaid || isLegacyMode) && !storageFull && (
                   <div className={`border-2 rounded-xl p-6 text-center ${videoFile ? 'border-green-300 bg-green-50' : isLegacyMode ? 'border-purple-200 bg-purple-50' : 'border-green-200 bg-green-50'}`}>
                     <div className="text-4xl mb-3">🎥</div>
                     <h3 className="text-base font-bold text-gray-800 mb-2">Video Message</h3>
@@ -1162,14 +1224,51 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
+                {/* ✅ NEW — VIDEO — paid/legacy, storage FULL, fallback to per-capsule */}
+                {messageType === 'video' && (isPaid || isLegacyMode) && storageFull && (
+                  <div className="space-y-4">
+                    <div className={`border-2 rounded-xl p-5 text-center ${videoFile ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                      <div className="text-3xl mb-2">🎥</div>
+                      <p className="text-sm font-medium text-gray-700 mb-3">Select your video file</p>
+                      {!videoFile ? (
+                        <>
+                          <input type="file" accept="video/*" id="video-input-storagefull" onChange={e => setVideoFile(e.target.files[0])} className="hidden" />
+                          <label htmlFor="video-input-storagefull" className="inline-block cursor-pointer border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition">
+                            Choose video file
+                          </label>
+                        </>
+                      ) : (
+                        <div className="bg-white rounded-xl p-3 border border-green-200">
+                          <p className="text-sm text-green-700 font-medium">✅ {videoFile.name}</p>
+                          <p className="text-xs text-gray-400 mt-1">{(videoFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                          <button onClick={() => setVideoFile(null)} className="mt-2 text-xs text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded-lg transition">🗑️ Remove file</button>
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-400 mt-2">MP4, MOV · Max 2GB</p>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                      <p className="font-bold text-gray-800 text-sm">💳 Pay per capsule (storage full)</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {form.unlockDate
+                          ? <>Delivery in {getDeliveryYears(form.unlockDate)} years → <strong>{getDisplayPrice('video', form.unlockDate, isIndia)}</strong></>
+                          : <>from {isIndia ? '₹149' : '€5.99'}</>}
+                      </p>
+                      <button onClick={() => handlePerCapsulePayment('video')} disabled={perCapsulePaying || !videoFile}
+                        className="w-full mt-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition">
+                        {perCapsulePaying ? 'Processing...' : !videoFile ? 'Select video file first ↑' : `Pay ${getDisplayPrice('video', form.unlockDate, isIndia)} & Seal`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {uploadProgress && !uploadBlocking && (
                   <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3">
                     <p className="text-sm text-blue-700">⏳ {uploadProgress}</p>
                   </div>
                 )}
 
-                {/* ✅ Seal button — paid/legacy — now opens preview instead of submitting directly */}
-                {(isPaid || isLegacyMode) && (
+                {/* Seal button — paid/legacy, NOT storage full (or text type which doesn't need storage) */}
+                {(isPaid || isLegacyMode) && (!storageFull || messageType === 'text') && (
                   <div className="flex gap-3 mt-5">
                     <button onClick={() => setStep(isLegacyMode ? 1 : 2)}
                       className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
@@ -1180,7 +1279,15 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* ✅ Seal button — free text within 5000 words, not bypass — now opens preview */}
+                {/* Back button only — paid/legacy + storage full + media type (per-capsule payment handles the seal) */}
+                {(isPaid || isLegacyMode) && storageFull && messageType !== 'text' && (
+                  <div className="mt-4">
+                    <button onClick={() => setStep(isLegacyMode ? 1 : 2)}
+                      className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
+                  </div>
+                )}
+
+                {/* Seal button — free text within 5000 words, not bypass */}
                 {!isPaid && !isLegacyMode && messageType === 'text' && wordCount <= 5000 && !isBypassMode && (
                   <div className="flex gap-3 mt-5">
                     <button onClick={() => setStep(2)} className="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
@@ -1191,7 +1298,7 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {/* Back only buttons */}
+                {/* Back only buttons — free users */}
                 {!isPaid && !isLegacyMode && messageType !== 'text' && (
                   <div className="mt-4">
                     <button onClick={() => setStep(2)} className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl transition hover:border-gray-300 text-sm">← Back</button>
@@ -1203,10 +1310,10 @@ export default function CreateCapsule() {
                   </div>
                 )}
 
-                {messageType === 'audio' && (isPaid || isLegacyMode) && !audioFile && (
+                {messageType === 'audio' && (isPaid || isLegacyMode) && !storageFull && !audioFile && (
                   <p className={`text-center text-xs ${accentClasses.text} mt-3`}>Please select an audio file to continue.</p>
                 )}
-                {messageType === 'video' && (isPaid || isLegacyMode) && !videoFile && (
+                {messageType === 'video' && (isPaid || isLegacyMode) && !storageFull && !videoFile && (
                   <p className={`text-center text-xs ${accentClasses.text} mt-3`}>Please select a video file to continue.</p>
                 )}
               </div>

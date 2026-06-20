@@ -2,27 +2,29 @@
 import { useState } from 'react'
 import { supabase } from '../../supabase'
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+}
+
 export default function SubmitProof() {
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
+  const [emailError, setEmailError] = useState('')
   const [contactInfo, setContactInfo] = useState(null)
   const [proofType, setProofType] = useState('')
-  const [proofFile, setProofFile] = useState(null)
+  const [proofFiles, setProofFiles] = useState([])
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [uploadProgress, setUploadProgress] = useState('')
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
   const handleFindContact = async () => {
-    // ✅ Validate email format before searching
-    if (!emailRegex.test(email.trim())) {
-      setError('Please enter a valid email address (e.g. name@example.com)')
+    if (!isValidEmail(email)) {
+      setEmailError('Please enter a valid email address (e.g. name@example.com)')
       return
     }
-
+    setEmailError('')
     setLoading(true)
     setError('')
     const { data, error } = await supabase
@@ -42,72 +44,103 @@ export default function SubmitProof() {
     setLoading(false)
   }
 
+  const handleAddFiles = (newFiles) => {
+    const filesArray = Array.from(newFiles)
+    const maxFiles = 10
+    const maxSizePerFile = 50 * 1024 * 1024 // 50MB
+
+    const validFiles = []
+    for (const file of filesArray) {
+      if (proofFiles.length + validFiles.length >= maxFiles) {
+        alert(`Maximum ${maxFiles} files allowed.`)
+        break
+      }
+      if (file.size > maxSizePerFile) {
+        alert(`${file.name} is too large. Maximum size per file is 50MB.`)
+        continue
+      }
+      validFiles.push(file)
+    }
+    setProofFiles([...proofFiles, ...validFiles])
+  }
+
+  const handleRemoveFile = (index) => {
+    setProofFiles(proofFiles.filter((_, i) => i !== index))
+  }
+
+  // ✅ Presigned URL upload — same pattern as audio/video capsules, no server file size limit
+  const uploadProofFile = async (file, userId) => {
+    const urlRes = await fetch('/api/get-proof-upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        fileName: file.name,
+        fileSize: file.size,
+        contentType: file.type || 'application/octet-stream',
+      }),
+    })
+
+    if (!urlRes.ok) {
+      const errData = await urlRes.json().catch(() => ({}))
+      throw new Error(errData.error || `Failed to get upload URL (${urlRes.status})`)
+    }
+
+    const urlData = await urlRes.json()
+    if (urlData.error) throw new Error(urlData.error)
+
+    const uploadRes = await fetch(urlData.presignedUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    })
+
+    if (!uploadRes.ok) {
+      throw new Error(`Upload to cloud storage failed for ${file.name}`)
+    }
+
+    return { key: urlData.key, name: file.name, size: file.size }
+  }
+
   const handleSubmitProof = async () => {
     if (!proofType) { setError('Please select a proof type.'); return }
-    if (!proofFile) { setError('Please upload a proof document.'); return }
-
-    // Check file size (10MB max)
-    if (proofFile.size > 10 * 1024 * 1024) {
-      setError('File too large. Maximum size is 10MB.')
-      return
-    }
+    if (proofFiles.length === 0) { setError('Please upload at least one proof document.'); return }
 
     setLoading(true)
     setError('')
 
     try {
-      // Upload proof document to Cloudflare R2 via API
-      // Step 1 — Get presigned URL
-      setUploadProgress('Preparing upload...')
-      const urlRes = await fetch('/api/get-upload-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: contactInfo.user_id,
-          fileType: 'proof',
-          fileName: proofFile.name,
-          fileSize: proofFile.size,
-          contentType: proofFile.type,
-          plan: 'legacy',
-        }),
-      })
+      const uploadedFiles = []
 
-      const urlData = await urlRes.json()
-      if (urlData.error) throw new Error(urlData.error)
+      for (let i = 0; i < proofFiles.length; i++) {
+        const file = proofFiles[i]
+        setUploadProgress(`Uploading document ${i + 1} of ${proofFiles.length}: ${file.name}...`)
+        const result = await uploadProofFile(file, contactInfo.user_id)
+        uploadedFiles.push(result)
+      }
 
-      // Step 2 — Upload directly to R2
-      setUploadProgress('Uploading document...')
-      const uploadRes = await fetch(urlData.presignedUrl, {
-        method: 'PUT',
-        body: proofFile,
-        headers: { 'Content-Type': proofFile.type },
-      })
-
-      if (!uploadRes.ok) throw new Error('Failed to upload document')
-
-      // Use the key to build a signed URL for admin to view later
-      const proofUrl = `proof:${urlData.key}` // Store key, admin uses signed URL to view
       setUploadProgress('Saving verification record...')
 
-      // Save verification record to Supabase
       const { error: verifyError } = await supabase
         .from('legacy_verifications')
         .insert({
           user_id: contactInfo.user_id,
           legacy_contact_id: contactInfo.id,
-          proof_document_url: proofUrl,
-          proof_document_name: proofFile.name,
-          proof_document_size: proofFile.size,
+          proof_document_url: uploadedFiles[0].key, // store key, admin generates signed view URL
+          proof_document_name: uploadedFiles.map(f => f.name).join(', '),
+          proof_document_size: uploadedFiles.reduce((sum, f) => sum + f.size, 0),
           proof_type: proofType,
           submitted_at: new Date().toISOString(),
           status: 'pending',
+          team_notes: uploadedFiles.length > 1
+            ? `Multiple files (${uploadedFiles.length}): ${uploadedFiles.map(f => f.key).join(' | ')}`
+            : null,
         })
 
-      if (verifyError) throw new Error('Failed to save verification record')
+      if (verifyError) throw new Error('Failed to save verification record: ' + verifyError.message)
 
       setUploadProgress('Notifying team...')
 
-      // Notify admin team
       await fetch('/api/notify-legacy-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -118,12 +151,14 @@ export default function SubmitProof() {
           userId: contactInfo.user_id,
           proofType,
           notes,
+          fileCount: uploadedFiles.length,
         })
       })
 
       setUploadProgress('')
       setSubmitted(true)
     } catch (err) {
+      console.error('Submit proof error:', err)
       setUploadProgress('')
       setError(err.message || 'Something went wrong. Please try again.')
     }
@@ -139,7 +174,7 @@ export default function SubmitProof() {
           Our team has received your submission and will contact you within <strong>48 hours</strong> on your mobile number to verify.
         </p>
         <div className="bg-white border border-purple-200 rounded-xl p-5 text-sm text-left space-y-2">
-          <p className="text-purple-700">✅ Proof document uploaded securely</p>
+          <p className="text-purple-700">✅ {proofFiles.length} document{proofFiles.length > 1 ? 's' : ''} uploaded securely</p>
           <p className="text-purple-700">📞 Our team will call you at <strong>{contactInfo?.contact_mobile}</strong></p>
           <p className="text-purple-700">⏳ Verification takes 24-48 hours</p>
           <p className="text-purple-700">💌 Messages released only after personal verification</p>
@@ -169,7 +204,6 @@ export default function SubmitProof() {
 
         <div className="bg-white rounded-2xl shadow-sm p-6">
 
-          {/* Step 1 — Find contact */}
           {step === 1 && (
             <div>
               <h2 className="text-lg font-bold text-gray-800 mb-2">Verify your identity</h2>
@@ -184,18 +218,14 @@ export default function SubmitProof() {
                 <input
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={e => { setEmail(e.target.value); setEmailError('') }}
                   onKeyDown={e => e.key === 'Enter' && handleFindContact()}
                   className={`w-full border rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-300 ${
-                    email && !emailRegex.test(email.trim())
-                      ? 'border-red-300 bg-red-50'
-                      : 'border-gray-200'
+                    emailError ? 'border-red-300 bg-red-50' : 'border-gray-200'
                   }`}
                   placeholder="your@email.com"
                 />
-                {email && !emailRegex.test(email.trim()) && (
-                  <p className="text-xs text-red-500 mt-1">Please enter a valid email address</p>
-                )}
+                {emailError && <p className="text-xs text-red-500 mt-1">{emailError}</p>}
               </div>
 
               {error && (
@@ -213,7 +243,6 @@ export default function SubmitProof() {
             </div>
           )}
 
-          {/* Step 2 — Submit proof */}
           {step === 2 && contactInfo && (
             <div>
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
@@ -225,7 +254,6 @@ export default function SubmitProof() {
 
               <h2 className="text-lg font-bold text-gray-800 mb-4">Submit proof of passing</h2>
 
-              {/* Proof type selection */}
               <div className="mb-5">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Type of proof <span className="text-red-500">*</span>
@@ -261,27 +289,37 @@ export default function SubmitProof() {
                 </div>
               </div>
 
-              {/* File upload */}
               <div className="mb-5">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Upload document <span className="text-red-500">*</span>
+                  Upload documents <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                  onChange={e => setProofFile(e.target.files[0])}
+                  multiple
+                  onChange={e => handleAddFiles(e.target.files)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer"
                 />
-                {proofFile && (
-                  <div className="mt-2 bg-green-50 rounded-xl p-3 border border-green-200">
-                    <p className="text-sm text-green-700 font-medium">✅ {proofFile.name}</p>
-                    <p className="text-xs text-gray-400 mt-1">{(proofFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOC accepted · Max 50MB per file · Up to 10 files</p>
+
+                {proofFiles.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {proofFiles.map((file, i) => (
+                      <div key={i} className="bg-green-50 rounded-xl p-3 border border-green-200 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-green-700 font-medium">✅ {file.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
+                        <button onClick={() => handleRemoveFile(i)}
+                          className="text-xs text-red-500 hover:text-red-700 border border-red-200 px-2 py-1 rounded-lg transition flex-shrink-0">
+                          🗑️ Remove
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
-                <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOC accepted · Max 10MB · Stored securely</p>
               </div>
 
-              {/* Additional notes */}
               <div className="mb-5">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Additional notes (optional)
@@ -295,7 +333,6 @@ export default function SubmitProof() {
                 />
               </div>
 
-              {/* Call notice */}
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
                 <p className="text-xs text-amber-700 font-medium">
                   📞 Our team will call <strong>{contactInfo.contact_mobile}</strong> within 48 hours
@@ -305,7 +342,6 @@ export default function SubmitProof() {
                 </p>
               </div>
 
-              {/* Upload progress */}
               {uploadProgress && (
                 <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-4">
                   <p className="text-sm text-purple-700">⏳ {uploadProgress}</p>
@@ -320,13 +356,13 @@ export default function SubmitProof() {
 
               <button
                 onClick={handleSubmitProof}
-                disabled={loading || !proofType || !proofFile}
+                disabled={loading || !proofType || proofFiles.length === 0}
                 className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white py-3 rounded-xl font-semibold transition">
-                {loading ? 'Submitting...' : 'Submit Proof →'}
+                {loading ? 'Submitting...' : `Submit ${proofFiles.length > 0 ? `${proofFiles.length} Document${proofFiles.length > 1 ? 's' : ''}` : 'Proof'} →`}
               </button>
 
               <button
-                onClick={() => { setStep(1); setError('') }}
+                onClick={() => { setStep(1); setError(''); setProofFiles([]) }}
                 className="w-full mt-3 text-gray-400 text-sm hover:text-gray-600 transition">
                 ← Use different email
               </button>
