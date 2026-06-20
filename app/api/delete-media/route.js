@@ -8,34 +8,45 @@ const supabase = createClient(
 
 export async function POST(request) {
   try {
-    const { key, userId, fileSize, mediaType } = await request.json()
+    const { key, userId, fileSize, mediaType, isLegacy } = await request.json()
 
-    if (!key || !userId) {
-      return Response.json({ error: 'Missing fields' }, { status: 400 })
-    }
-
-    // Delete from R2
     await deleteFromR2(process.env.CLOUDFLARE_R2_BUCKET_MEDIA, key)
 
-    // Update storage usage
-    if (fileSize) {
-      const { data: existing } = await supabase
+    if (isLegacy) {
+      // Decrement legacy_plans storage
+      const { data: legacyPlan } = await supabase
+        .from('legacy_plans')
+        .select('storage_used_bytes')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single()
+
+      if (legacyPlan) {
+        const newUsed = Math.max(0, (legacyPlan.storage_used_bytes || 0) - (fileSize || 0))
+        await supabase
+          .from('legacy_plans')
+          .update({ storage_used_bytes: newUsed })
+          .eq('user_id', userId)
+      }
+    } else {
+      // Decrement regular storage_usage
+      const { data: usage } = await supabase
         .from('storage_usage')
         .select('*')
         .eq('user_id', userId)
         .single()
 
-      if (existing) {
+      if (usage) {
+        const newTotal = Math.max(0, (usage.total_bytes || 0) - (fileSize || 0))
+        const newAudio = mediaType === 'audio' ? Math.max(0, (usage.audio_bytes || 0) - (fileSize || 0)) : usage.audio_bytes
+        const newVideo = mediaType === 'video' ? Math.max(0, (usage.video_bytes || 0) - (fileSize || 0)) : usage.video_bytes
+
         await supabase
           .from('storage_usage')
           .update({
-            total_bytes: Math.max(0, existing.total_bytes - fileSize),
-            audio_bytes: mediaType === 'audio'
-              ? Math.max(0, existing.audio_bytes - fileSize)
-              : existing.audio_bytes,
-            video_bytes: mediaType === 'video'
-              ? Math.max(0, existing.video_bytes - fileSize)
-              : existing.video_bytes,
+            total_bytes: newTotal,
+            audio_bytes: newAudio,
+            video_bytes: newVideo,
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', userId)

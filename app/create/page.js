@@ -309,6 +309,7 @@ export default function CreateCapsule() {
       media_type: messageType !== 'text' ? messageType : null,
       media_url: mediaUrl, media_file_name: mediaFileName, media_file_size: mediaFileSize,
       recipients: currentPlan === 'forever' && additionalRecipients.length > 0 ? additionalRecipients : [],
+      plan_type: isLegacyMode ? 'legacy' : currentPlan, // ✅ NEW — track plan at creation time
     }
     if (user) insertData.sender_id = user.id
     const { data, error } = await supabase.from('capsules').insert(insertData).select()
@@ -332,22 +333,31 @@ export default function CreateCapsule() {
     const { data: { user } } = await supabase.auth.getUser()
     let mediaUrl = null, mediaFileName = null, mediaFileSize = null
     const fileToUpload = messageType === 'audio' ? audioFile : messageType === 'video' ? videoFile : null
+
+    // ✅ Show blocking overlay for file uploads (Loved/Forever/Legacy)
     if (fileToUpload) {
+      setUploadBlocking(true)
+      setUploadBlockingMessage(`Uploading ${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB to cloud...`)
       try {
         const result = await uploadFileToR2(fileToUpload, user)
         mediaUrl = result.url; mediaFileName = result.fileName; mediaFileSize = result.fileSize
       } catch (err) {
+        setUploadBlocking(false)
         alert(err.message || 'Upload failed. Please try again.')
         setLoading(false); setUploadProgress(''); return
       }
     }
+
     try {
+      if (fileToUpload) setUploadBlockingMessage('Sealing your capsule...')
       await saveCapsule(user, mediaUrl, mediaFileName, mediaFileSize)
+      setUploadBlocking(false)
       setLoading(false); setUploadProgress(''); setSubmitted(true)
     } catch (err) {
+      setUploadBlocking(false)
       alert('Something went wrong saving your capsule. Please try again.')
       setLoading(false); setUploadProgress('')
-    }
+   }
   }
 
   const handlePerCapsulePayment = async (type) => {

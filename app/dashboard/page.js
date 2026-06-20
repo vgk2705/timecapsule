@@ -143,7 +143,8 @@ export default function Dashboard() {
             key: capsule.media_url.replace(process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL + '/', ''),
             userId: user.id,
             fileSize: capsule.media_file_size,
-            mediaType: capsule.media_type
+            mediaType: capsule.media_type,
+            isLegacy: capsule.is_legacy, // ✅ NEW — tells API which storage table to update
           })
         })
       }
