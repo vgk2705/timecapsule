@@ -31,7 +31,7 @@ export async function GET(request) {
   await supabase
     .from('checkins')
     .update({
-      last_checkin_at: new Date().toISOString(),
+      checked_in_at: new Date().toISOString(),
       next_checkin_due: nextCheckin.toISOString(),
       missed: false,
       legacy_alert_sent: false,
@@ -41,4 +41,4 @@ export async function GET(request) {
 
   // Redirect to a nice confirmation page
   return Response.redirect('https://www.mytimecapsule.app/checkin-confirmed')
-}
+}   

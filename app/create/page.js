@@ -312,7 +312,10 @@ export default function CreateCapsule() {
     }
     if (user) insertData.sender_id = user.id
     const { data, error } = await supabase.from('capsules').insert(insertData).select()
-    if (error) throw new Error('Failed to save capsule')
+    if (error) {
+      console.error('Capsule insert error:', error)
+      throw new Error(error.message || 'Failed to save capsule')
+    }
     if (paymentId && data?.[0]?.id) {
       await supabase.from('capsule_payments').insert({
         user_id: user.id, capsule_id: data[0].id,

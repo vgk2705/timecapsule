@@ -174,16 +174,22 @@ export default function LegacySetup() {
         })
       }
 
+      // Set up check-in
       const nextCheckin = new Date()
       nextCheckin.setMonth(nextCheckin.getMonth() + 6)
-      await supabase.from('checkins').upsert({
+      const { error: checkinError } = await supabase.from('checkins').upsert({
         user_id: user.id,
-        last_checkin_at: new Date().toISOString(),
+        checked_in_at: new Date().toISOString(),
         next_checkin_due: nextCheckin.toISOString(),
         checkin_token: crypto.randomUUID(),
         missed: false,
         legacy_alert_sent: false,
       }, { onConflict: 'user_id' })
+
+      if (checkinError) {
+        console.error('Checkin setup error:', checkinError)
+        // Don't block the flow — checkin can be set up later, not critical for capsule creation
+      }
 
       setStep(4)
     } catch (err) {
