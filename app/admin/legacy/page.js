@@ -79,8 +79,27 @@ export default function AdminLegacy() {
     setViewingDoc(null)
   }
 
+  // ✅ FIX — Check for existing approval, warn admin, supersede other pending submissions
   const handleApprove = async (verification) => {
-    if (!confirm(`Approve and release all legacy capsules for user ${verification.user_id}?`)) return
+    // Check if this user already has an approved verification
+    const { data: existingVerified } = await supabase
+      .from('legacy_verifications')
+      .select('id, verified_at, verified_by')
+      .eq('user_id', verification.user_id)
+      .eq('status', 'verified')
+      .neq('id', verification.id)
+
+    if (existingVerified && existingVerified.length > 0) {
+      const proceed = confirm(
+        `⚠️ This user already has an APPROVED verification (by ${existingVerified[0].verified_by} on ${new Date(existingVerified[0].verified_at).toLocaleDateString()}).\n\n` +
+        `Capsules have likely already been delivered. Approving this duplicate will mark it verified but won't re-send already-delivered capsules.\n\n` +
+        `Mark this as verified anyway (for record-keeping)?`
+      )
+      if (!proceed) return
+    } else {
+      if (!confirm(`Approve and release all legacy capsules for user ${verification.user_id}?`)) return
+    }
+
     setActionLoading(verification.id)
 
     try {
@@ -104,6 +123,19 @@ export default function AdminLegacy() {
 
       const result = await res.json()
       if (result.error) throw new Error(result.error)
+
+      // ✅ Auto-supersede any other pending/under_review submissions for this same user
+      await supabase
+        .from('legacy_verifications')
+        .update({
+          status: 'rejected',
+          rejection_category: 'superseded',
+          rejection_reason: 'Another verification for this user was already approved.',
+          superseded_by: verification.id,
+        })
+        .eq('user_id', verification.user_id)
+        .in('status', ['pending', 'under_review'])
+        .neq('id', verification.id)
 
       alert(`✅ Approved! ${result.sent} legacy capsules released.`)
       fetchVerifications()
@@ -216,7 +248,6 @@ export default function AdminLegacy() {
 
       <main className="max-w-6xl mx-auto px-4 py-8">
 
-        {/* ✅ Filter tabs with live count badges */}
         <div className="flex gap-2 mb-6 bg-white rounded-xl p-1 shadow-sm w-fit">
           {['pending', 'under_review', 'verified', 'rejected'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
@@ -356,7 +387,9 @@ export default function AdminLegacy() {
                   {v.status === 'rejected' && (
                     <div className="text-xs text-red-500">
                       ❌ Rejected by {v.verified_by} ·{' '}
-                      {v.rejection_category === 'false_alarm_alive' ? '🟢 User confirmed alive' : '📋 Insufficient proof'} ·{' '}
+                      {v.rejection_category === 'false_alarm_alive' ? '🟢 User confirmed alive' :
+                       v.rejection_category === 'superseded' ? '🔁 Superseded by another approval' :
+                       '📋 Insufficient proof'} ·{' '}
                       {v.rejection_reason}
                     </div>
                   )}
