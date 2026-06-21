@@ -10,6 +10,7 @@ export default function AdminLegacy() {
   const [actionLoading, setActionLoading] = useState(null)
   const [notes, setNotes] = useState({})
   const [filter, setFilter] = useState('pending')
+  const [viewingDoc, setViewingDoc] = useState(null) // ✅ tracks which doc is loading view URL
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -43,12 +44,54 @@ export default function AdminLegacy() {
     setLoading(false)
   }
 
+  // ✅ FIX — Generate signed URL for private proof document before opening
+  const handleViewDocument = async (verification) => {
+    setViewingDoc(verification.id)
+    try {
+      // proof_document_url may contain multiple keys (multi-file) joined with " | "
+      // or team_notes contains "Multiple files (N): key1 | key2 | ..."
+      const keys = []
+
+      if (verification.team_notes && verification.team_notes.startsWith('Multiple files')) {
+        const match = verification.team_notes.match(/Multiple files \(\d+\): (.+)/)
+        if (match) {
+          keys.push(...match[1].split(' | '))
+        }
+      } else if (verification.proof_document_url) {
+        keys.push(verification.proof_document_url)
+      }
+
+      if (keys.length === 0) {
+        alert('No document key found for this submission.')
+        setViewingDoc(null)
+        return
+      }
+
+      // Open each file in a new tab with a fresh signed URL
+      for (const key of keys) {
+        const res = await fetch('/api/get-proof-view-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: key.trim() }),
+        })
+        const data = await res.json()
+        if (data.error) {
+          alert(`Failed to load document: ${data.error}`)
+          continue
+        }
+        window.open(data.viewUrl, '_blank')
+      }
+    } catch (err) {
+      alert('Error loading document: ' + err.message)
+    }
+    setViewingDoc(null)
+  }
+
   const handleApprove = async (verification) => {
     if (!confirm(`Approve and release all legacy capsules for user ${verification.user_id}?`)) return
     setActionLoading(verification.id)
 
     try {
-      // 1. Update verification status
       const { data: { user } } = await supabase.auth.getUser()
       await supabase
         .from('legacy_verifications')
@@ -61,7 +104,6 @@ export default function AdminLegacy() {
         })
         .eq('id', verification.id)
 
-      // 2. Release legacy capsules
       const res = await fetch('/api/release-legacy-capsules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,24 +121,73 @@ export default function AdminLegacy() {
     setActionLoading(null)
   }
 
+  // ✅ FIX — 3-way rejection: insufficient proof vs. confirmed alive (false alarm)
   const handleReject = async (verification) => {
-    const reason = prompt('Reason for rejection:')
-    if (!reason) return
+    const isAlive = confirm(
+      'Is this rejection because the user is CONFIRMED ALIVE (false alarm)?\n\n' +
+      'Click OK → User is ALIVE (resets their check-in cycle, notifies contact everything is fine)\n' +
+      'Click Cancel → Proof was just INSUFFICIENT (contact can resubmit better documents)'
+    )
+    const category = isAlive ? 'false_alarm_alive' : 'insufficient_proof'
+
+    const reason = prompt(
+      isAlive
+        ? 'Optional note for the legacy contact (e.g. "Confirmed via phone call on [date]"):'
+        : 'Reason for rejection (visible to legacy contact, e.g. "Document was unclear, please resubmit a clearer scan"):'
+    )
+    if (reason === null) return // user cancelled the prompt entirely
+
     setActionLoading(verification.id)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    await supabase
-      .from('legacy_verifications')
-      .update({
-        status: 'rejected',
-        rejection_reason: reason,
-        verified_by: user.email,
-        team_notes: notes[verification.id] || '',
-      })
-      .eq('id', verification.id)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase
+        .from('legacy_verifications')
+        .update({
+          status: 'rejected',
+          rejection_reason: reason || (isAlive ? 'Confirmed alive via phone verification' : 'Insufficient proof'),
+          rejection_category: category,
+          verified_by: user.email,
+          verified_at: new Date().toISOString(),
+          team_notes: notes[verification.id] || '',
+        })
+        .eq('id', verification.id)
 
-    alert('❌ Verification rejected.')
-    fetchVerifications()
+      // ✅ If user confirmed alive, reset their check-in cycle
+      if (category === 'false_alarm_alive') {
+        const nextCheckin = new Date()
+        nextCheckin.setMonth(nextCheckin.getMonth() + 6)
+        await supabase
+          .from('checkins')
+          .update({
+            checked_in_at: new Date().toISOString(),
+            next_checkin_due: nextCheckin.toISOString(),
+            missed: false,
+            legacy_alert_sent: false,
+          })
+          .eq('user_id', verification.user_id)
+      }
+
+      // Notify legacy contact by email
+      await fetch('/api/notify-legacy-rejection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          verificationId: verification.id,
+          category,
+          reason: reason || '',
+        })
+      }).catch(err => console.error('Notify rejection email failed:', err))
+
+      alert(
+        category === 'false_alarm_alive'
+          ? '✅ Marked as alive. Check-in cycle reset, contact notified.'
+          : '❌ Rejected as insufficient proof. Contact notified to resubmit.'
+      )
+      fetchVerifications()
+    } catch (err) {
+      alert('Error: ' + err.message)
+    }
     setActionLoading(null)
   }
 
@@ -133,7 +224,6 @@ export default function AdminLegacy() {
 
       <main className="max-w-6xl mx-auto px-4 py-8">
 
-        {/* Filter tabs */}
         <div className="flex gap-2 mb-6 bg-white rounded-xl p-1 shadow-sm w-fit">
           {['pending', 'under_review', 'verified', 'rejected'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
@@ -156,7 +246,6 @@ export default function AdminLegacy() {
             {verifications.map(v => (
               <div key={v.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
 
-                {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -176,7 +265,6 @@ export default function AdminLegacy() {
                   </div>
                 </div>
 
-                {/* Legacy contact details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div className="bg-purple-50 rounded-xl p-4">
                     <p className="text-xs font-semibold text-purple-700 mb-2">LEGACY CONTACT</p>
@@ -192,11 +280,15 @@ export default function AdminLegacy() {
                   <div className="bg-gray-50 rounded-xl p-4">
                     <p className="text-xs font-semibold text-gray-500 mb-2">PROOF SUBMITTED</p>
                     <p className="text-sm font-medium text-gray-800 capitalize">{v.proof_type?.replace('_', ' ')}</p>
-                    {v.proof_document_url && (
-                      <a href={v.proof_document_url} target="_blank" rel="noopener noreferrer"
-                        className="inline-block mt-2 text-sm text-purple-600 hover:underline font-medium">
-                        📄 View Document →
-                      </a>
+
+                    {/* ✅ FIX — Generate signed URL instead of direct link */}
+                    {(v.proof_document_url || v.team_notes?.startsWith('Multiple files')) && (
+                      <button
+                        onClick={() => handleViewDocument(v)}
+                        disabled={viewingDoc === v.id}
+                        className="inline-block mt-2 text-sm text-purple-600 hover:underline font-medium disabled:opacity-50">
+                        {viewingDoc === v.id ? '⏳ Loading...' : '📄 View Document(s) →'}
+                      </button>
                     )}
                     {v.proof_document_name && (
                       <p className="text-xs text-gray-400 mt-1">{v.proof_document_name}</p>
@@ -204,7 +296,6 @@ export default function AdminLegacy() {
                   </div>
                 </div>
 
-                {/* Team notes */}
                 <div className="mb-4">
                   <label className="block text-xs font-medium text-gray-500 mb-1">Team Notes</label>
                   <textarea
@@ -216,14 +307,12 @@ export default function AdminLegacy() {
                   />
                 </div>
 
-                {/* Call tracking */}
                 {v.called_at && (
                   <div className="bg-blue-50 rounded-xl p-3 mb-4 text-xs text-blue-700">
                     📞 Called on {new Date(v.called_at).toLocaleDateString('en-GB')} by {v.called_by}
                   </div>
                 )}
 
-                {/* Action buttons */}
                 {(v.status === 'pending' || v.status === 'under_review') && (
                   <div className="flex flex-wrap gap-3">
                     {v.status === 'pending' && (
@@ -254,7 +343,9 @@ export default function AdminLegacy() {
 
                 {v.status === 'rejected' && (
                   <div className="text-xs text-red-500">
-                    ❌ Rejected by {v.verified_by} · Reason: {v.rejection_reason}
+                    ❌ Rejected by {v.verified_by} ·{' '}
+                    {v.rejection_category === 'false_alarm_alive' ? '🟢 User confirmed alive' : '📋 Insufficient proof'} ·{' '}
+                    {v.rejection_reason}
                   </div>
                 )}
 
