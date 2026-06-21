@@ -121,20 +121,18 @@ export default function SubmitProof() {
       setUploadProgress('Saving verification record...')
 
       const { error: verifyError } = await supabase
-        .from('legacy_verifications')
-        .insert({
-          user_id: contactInfo.user_id,
-          legacy_contact_id: contactInfo.id,
-          proof_document_url: uploadedFiles[0].key,
-          proof_document_name: uploadedFiles.map(f => f.name).join(', '),
-          proof_document_size: uploadedFiles.reduce((sum, f) => sum + f.size, 0),
-          proof_type: proofType,
-          submitted_at: new Date().toISOString(),
-          status: 'pending',
-          team_notes: uploadedFiles.length > 1
-            ? `Multiple files (${uploadedFiles.length}): ${uploadedFiles.map(f => f.key).join(' | ')}`
-            : null,
-        })
+      .from('legacy_verifications')
+      .insert({
+        user_id: contactInfo.user_id,
+        legacy_contact_id: contactInfo.id,
+        proof_document_url: uploadedFiles[0].key, // kept for backward compatibility / quick reference
+        proof_document_keys: uploadedFiles.map(f => ({ key: f.key, name: f.name, size: f.size })), // ✅ all files, dedicated column
+        proof_document_name: uploadedFiles.map(f => f.name).join(', '),
+        proof_document_size: uploadedFiles.reduce((sum, f) => sum + f.size, 0),
+        proof_type: proofType,
+        submitted_at: new Date().toISOString(),
+        status: 'pending',
+      })
 
       if (verifyError) throw new Error('Failed to save verification record: ' + verifyError.message)
 
