@@ -11,6 +11,7 @@ export default function AdminLegacy() {
   const [notes, setNotes] = useState({})
   const [filter, setFilter] = useState('pending')
   const [viewingDoc, setViewingDoc] = useState(null)
+  const [counts, setCounts] = useState({ pending: 0, under_review: 0, verified: 0, rejected: 0 })
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -20,6 +21,7 @@ export default function AdminLegacy() {
         return
       }
       fetchVerifications()
+      fetchCounts()
     }
     checkAdmin()
   }, [filter])
@@ -42,6 +44,18 @@ export default function AdminLegacy() {
 
     setVerifications(data || [])
     setLoading(false)
+  }
+
+  const fetchCounts = async () => {
+    const statuses = ['pending', 'under_review', 'verified', 'rejected']
+    const results = await Promise.all(
+      statuses.map(s =>
+        supabase.from('legacy_verifications').select('id', { count: 'exact', head: true }).eq('status', s)
+      )
+    )
+    const newCounts = {}
+    statuses.forEach((s, i) => { newCounts[s] = results[i].count || 0 })
+    setCounts(newCounts)
   }
 
   const handleViewSingleFile = async (verificationId, fileIndex, key) => {
@@ -93,6 +107,7 @@ export default function AdminLegacy() {
 
       alert(`✅ Approved! ${result.sent} legacy capsules released.`)
       fetchVerifications()
+      fetchCounts()
     } catch (err) {
       alert('Error: ' + err.message)
     }
@@ -160,6 +175,7 @@ export default function AdminLegacy() {
           : '❌ Rejected as insufficient proof. Contact notified to resubmit.'
       )
       fetchVerifications()
+      fetchCounts()
     } catch (err) {
       alert('Error: ' + err.message)
     }
@@ -180,6 +196,7 @@ export default function AdminLegacy() {
 
     alert('📞 Marked as called and under review.')
     fetchVerifications()
+    fetchCounts()
   }
 
   return (
@@ -199,13 +216,21 @@ export default function AdminLegacy() {
 
       <main className="max-w-6xl mx-auto px-4 py-8">
 
+        {/* ✅ Filter tabs with live count badges */}
         <div className="flex gap-2 mb-6 bg-white rounded-xl p-1 shadow-sm w-fit">
           {['pending', 'under_review', 'verified', 'rejected'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition capitalize ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition capitalize ${
                 filter === f ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-gray-700'
               }`}>
               {f.replace('_', ' ')}
+              {counts[f] > 0 && (
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
+                  filter === f ? 'bg-white text-purple-600' : 'bg-purple-100 text-purple-600'
+                }`}>
+                  {counts[f]}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -219,7 +244,6 @@ export default function AdminLegacy() {
         ) : (
           <div className="space-y-4">
             {verifications.map(v => {
-              // ✅ Resolve files: prefer dedicated jsonb column, fallback to old single-url records
               const proofFiles = (v.proof_document_keys && v.proof_document_keys.length > 0)
                 ? v.proof_document_keys
                 : (v.proof_document_url ? [{ key: v.proof_document_url, name: v.proof_document_name || 'Document', size: v.proof_document_size }] : [])
@@ -258,7 +282,6 @@ export default function AdminLegacy() {
                       <p className="text-xs text-gray-400 mt-1">Relationship: {v.legacy_contacts?.relationship}</p>
                     </div>
 
-                    {/* ✅ Proof documents — each file listed individually with its own view button */}
                     <div className="bg-gray-50 rounded-xl p-4">
                       <p className="text-xs font-semibold text-gray-500 mb-2">PROOF SUBMITTED</p>
                       <p className="text-sm font-medium text-gray-800 capitalize mb-2">{v.proof_type?.replace('_', ' ')}</p>
