@@ -47,7 +47,7 @@ export default function SubmitProof() {
   const handleAddFiles = (newFiles) => {
     const filesArray = Array.from(newFiles)
     const maxFiles = 10
-    const maxSizePerFile = 50 * 1024 * 1024 // 50MB
+    const maxSizePerFile = 50 * 1024 * 1024
 
     const validFiles = []
     for (const file of filesArray) {
@@ -68,7 +68,6 @@ export default function SubmitProof() {
     setProofFiles(proofFiles.filter((_, i) => i !== index))
   }
 
-  // ✅ Presigned URL upload — same pattern as audio/video capsules, no server file size limit
   const uploadProofFile = async (file, userId) => {
     const urlRes = await fetch('/api/get-proof-upload-url', {
       method: 'POST',
@@ -83,7 +82,7 @@ export default function SubmitProof() {
 
     if (!urlRes.ok) {
       const errData = await urlRes.json().catch(() => ({}))
-      throw new Error(errData.error || `Failed to get upload URL (${urlRes.status})`)
+      throw new Error(errData.error || `Failed to get upload URL (server returned ${urlRes.status})`)
     }
 
     const urlData = await urlRes.json()
@@ -96,7 +95,7 @@ export default function SubmitProof() {
     })
 
     if (!uploadRes.ok) {
-      throw new Error(`Upload to cloud storage failed for ${file.name}`)
+      throw new Error(`Upload to cloud storage failed for ${file.name} (status ${uploadRes.status})`)
     }
 
     return { key: urlData.key, name: file.name, size: file.size }
@@ -126,7 +125,7 @@ export default function SubmitProof() {
         .insert({
           user_id: contactInfo.user_id,
           legacy_contact_id: contactInfo.id,
-          proof_document_url: uploadedFiles[0].key, // store key, admin generates signed view URL
+          proof_document_url: uploadedFiles[0].key,
           proof_document_name: uploadedFiles.map(f => f.name).join(', '),
           proof_document_size: uploadedFiles.reduce((sum, f) => sum + f.size, 0),
           proof_type: proofType,
@@ -164,6 +163,13 @@ export default function SubmitProof() {
     }
     setLoading(false)
   }
+
+  const PROOF_TYPES = [
+    { id: 'death_certificate', label: 'Death Certificate' },
+    { id: 'hospital_letter', label: 'Hospital / Doctor Letter' },
+    { id: 'obituary', label: 'Obituary / News Article' },
+    { id: 'other', label: 'Other official document' },
+  ]
 
   if (submitted) return (
     <div className="min-h-screen bg-purple-50 flex items-center justify-center px-4">
@@ -243,6 +249,7 @@ export default function SubmitProof() {
             </div>
           )}
 
+          {/* ✅ STEP 2 — Redesigned: dropdown first, then file upload below */}
           {step === 2 && contactInfo && (
             <div>
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
@@ -254,42 +261,24 @@ export default function SubmitProof() {
 
               <h2 className="text-lg font-bold text-gray-800 mb-4">Submit proof of passing</h2>
 
+              {/* ✅ Proof type — now a dropdown */}
               <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Type of proof <span className="text-red-500">*</span>
                 </label>
-                <div className="space-y-2">
-                  {[
-                    { id: 'death_certificate', label: 'Death Certificate', desc: 'Official government-issued certificate' },
-                    { id: 'hospital_letter', label: 'Hospital / Doctor Letter', desc: 'Letter from hospital or treating doctor' },
-                    { id: 'obituary', label: 'Obituary / News Article', desc: 'Published obituary or news report' },
-                    { id: 'other', label: 'Other official document', desc: 'Any other official documentation' },
-                  ].map(opt => (
-                    <label
-                      key={opt.id}
-                      className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${
-                        proofType === opt.id
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-200 hover:border-purple-300'
-                      }`}>
-                      <input
-                        type="radio"
-                        name="proofType"
-                        value={opt.id}
-                        checked={proofType === opt.id}
-                        onChange={e => setProofType(e.target.value)}
-                        className="accent-purple-600 mt-0.5"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">{opt.label}</p>
-                        <p className="text-xs text-gray-400">{opt.desc}</p>
-                      </div>
-                    </label>
+                <select
+                  value={proofType}
+                  onChange={e => setProofType(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-300 appearance-none cursor-pointer">
+                  <option value="">Select proof type...</option>
+                  {PROOF_TYPES.map(opt => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
                   ))}
-                </div>
+                </select>
               </div>
 
-              <div className="mb-5">
+              {/* ✅ File upload — only enabled/shown after proof type selected */}
+              <div className={`mb-5 transition ${!proofType ? 'opacity-50' : ''}`}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Upload documents <span className="text-red-500">*</span>
                 </label>
@@ -297,10 +286,13 @@ export default function SubmitProof() {
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                   multiple
+                  disabled={!proofType}
                   onChange={e => handleAddFiles(e.target.files)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white cursor-pointer disabled:cursor-not-allowed"
                 />
-                <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOC accepted · Max 50MB per file · Up to 10 files</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {!proofType ? 'Select a proof type first ↑' : 'PDF, JPG, PNG, DOC accepted · Max 50MB per file · Up to 10 files'}
+                </p>
 
                 {proofFiles.length > 0 && (
                   <div className="mt-3 space-y-2">
