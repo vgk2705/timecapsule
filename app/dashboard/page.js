@@ -365,28 +365,49 @@ export default function Dashboard() {
 
         {/* Active plan banner */}
         {isPaid && (
-          <div className="bg-gradient-to-r from-green-400 to-green-500 rounded-2xl p-4 md:p-5 mb-4 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-white font-bold text-sm">{currentPlan === 'forever' ? '👑 Forever Plan Active' : '💛 Loved Plan Active'}</p>
-              <p className="text-green-100 text-xs mt-0.5">
-                Audio & video unlocked ·{' '}
-                {subscription?.current_period_end
-                  ? `Renews ${new Date(subscription.current_period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                  : 'Active'}
-              </p>
+          <div className="bg-gradient-to-r from-green-400 to-green-500 rounded-2xl p-4 md:p-5 mb-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-white font-bold text-sm">
+                  {currentPlan === 'forever' ? '👑 Forever Plan Active' : '💛 Loved Plan Active'}
+                </p>
+                <p className="text-green-100 text-xs mt-0.5">
+                  Audio & video unlocked ·{' '}
+                  {subscription?.current_period_end
+                    ? `Renews ${new Date(subscription.current_period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                    : 'Active'
+                  }
+                </p>
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                <a href="/create" className="bg-white text-green-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-50 transition">
+                  + Create
+                </a>
+                <a href="/manage-plan" className="bg-green-600 text-white px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-700 transition border border-white/30">
+                  Manage
+                </a>
+              </div>
             </div>
-            <a href="/manage-plan" className="bg-white text-green-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-50 transition flex-shrink-0">Manage Plan</a>
           </div>
         )}
 
         {/* Legacy plan banner */}
         {legacyPlan && (
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl p-4 md:p-5 mb-4 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-white font-bold text-sm">👻 Legacy Plan Active</p>
-              <p className="text-purple-100 text-xs mt-0.5">When I am gone capsules · {legacyPlan.years_covered} years storage · 1GB</p>
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl p-4 md:p-5 mb-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-white font-bold text-sm">👻 Legacy Plan Active</p>
+                <p className="text-purple-100 text-xs mt-0.5">When I am gone capsules · {legacyPlan.years_covered} years storage · 1GB</p>
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                <a href="/create?legacy=true" className="bg-white text-purple-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-purple-50 transition">
+                  + Create
+                </a>
+                <a href="/manage-plan" className="bg-purple-700 text-white px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-purple-800 transition border border-white/30">
+                  Manage
+                </a>
+              </div>
             </div>
-            <a href="/manage-plan" className="bg-white text-purple-600 px-3 md:px-4 py-2 rounded-xl text-sm font-bold hover:bg-purple-50 transition flex-shrink-0">Manage</a>
           </div>
         )}
 

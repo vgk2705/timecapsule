@@ -74,13 +74,27 @@ export default function LegacySetup() {
         theme: { color: '#7c3aed' },
         // ✅ FIX — store age group instead of dob/age, drop storage_limit_bytes
         handler: async function(response) {
+          // ✅ Defensive fallback — use client-calculated ageInfo if API response is missing fields
+          const finalYears = data.years || ageInfo?.years
+          const finalAmount = data.amount ? data.amount / 100 : (ageInfo?.price ? parseInt(ageInfo.price.replace(/[^\d]/g, '')) : null)
+
+          if (!finalYears || !finalAmount) {
+            alert(
+              '⚠️ Payment successful but plan details are incomplete.\n\n' +
+              'years=' + finalYears + ', amount=' + finalAmount + '\n\n' +
+              'Please contact support immediately with payment ID: ' + response.razorpay_payment_id
+            )
+            setLoading(false)
+            return
+          }
+
           const { data: insertedPlan, error: insertError } = await supabase
             .from('legacy_plans')
             .insert({
               user_id: user.id,
               user_age_group: ageInfo.group,
-              years_covered: data.years,
-              amount_paid: data.amount / 100,
+              years_covered: finalYears,
+              amount_paid: finalAmount,
               currency: 'INR',
               payment_provider: 'razorpay',
               payment_id: response.razorpay_payment_id,
