@@ -28,6 +28,9 @@ export async function GET(request) {
   const nextCheckin = new Date()
   nextCheckin.setMonth(nextCheckin.getMonth() + 6)
 
+  // ✅ Increment checkin_count
+  const newCount = (checkin.checkin_count || 0) + 1
+
   await supabase
     .from('checkins')
     .update({
@@ -35,10 +38,11 @@ export async function GET(request) {
       next_checkin_due: nextCheckin.toISOString(),
       missed: false,
       legacy_alert_sent: false,
-      checkin_token: crypto.randomUUID() // Rotate token
+      checkin_token: crypto.randomUUID(), // Rotate token
+      checkin_count: newCount, // ✅ NEW
     })
     .eq('id', checkin.id)
 
   // Redirect to a nice confirmation page
   return Response.redirect('https://www.mytimecapsule.app/checkin-confirmed')
-}   
+}

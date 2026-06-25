@@ -70,10 +70,10 @@ export async function GET(request) {
       `
     })
 
-    // Mark as missed
+    // Mark as missed + track when reminder was sent
     await supabase
       .from('checkins')
-      .update({ missed: true })
+      .update({ missed: true, last_reminder_sent_at: new Date().toISOString() })
       .eq('id', checkin.id)
 
     // Get ALL legacy contacts for this user
