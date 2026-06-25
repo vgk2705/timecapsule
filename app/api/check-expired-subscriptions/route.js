@@ -5,7 +5,7 @@ import { deleteFromR2 } from '../../lib/r2'
 const resend = new Resend(process.env.RESEND_API_KEY)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
 export async function GET(request) {
@@ -36,12 +36,18 @@ export async function GET(request) {
     let userEmail = null
     let userName = 'there'
     try {
-      const { data: userData } = await supabase.auth.admin.getUserById(sub.user_id)
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(sub.user_id)
+      if (userError) console.error('getUserById error for', sub.user_id, userError.message)
       userEmail = userData?.user?.email
       userName = userData?.user?.user_metadata?.name || 'there'
-    } catch {}
+    } catch (err) {
+      console.error('getUserById exception for', sub.user_id, err.message)
+    }
 
-    if (!userEmail) continue
+    if (!userEmail) {
+      console.error('Skipping subscription — no email for user_id:', sub.user_id)
+      continue
+    }
 
     const { data: mediaCapsules } = await supabase
       .from('capsules')

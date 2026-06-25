@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 const resend = new Resend(process.env.RESEND_API_KEY)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY  // ✅ Required for auth.admin calls
 )
 
 const PLAN_MAP = {
@@ -17,12 +17,14 @@ const PLAN_MAP = {
 
 async function getUserEmail(userId) {
   try {
-    const { data } = await supabase.auth.admin.getUserById(userId)
+    const { data, error } = await supabase.auth.admin.getUserById(userId)
+    if (error) console.error('getUserEmail error:', error.message)
     return {
       email: data?.user?.email || null,
       name: data?.user?.user_metadata?.name || 'there',
     }
-  } catch {
+  } catch (err) {
+    console.error('getUserEmail exception:', err.message)
     return { email: null, name: 'there' }
   }
 }
