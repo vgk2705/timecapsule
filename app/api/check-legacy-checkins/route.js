@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 const resend = new Resend(process.env.RESEND_API_KEY)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY  // ✅ Required for auth.admin.* calls
 )
 
 export async function GET(request) {
@@ -31,12 +31,20 @@ export async function GET(request) {
     let userEmail = null
     let userName = 'there'
     try {
-      const { data: userData } = await supabase.auth.admin.getUserById(checkin.user_id)
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(checkin.user_id)
+      if (userError) {
+        console.error('Failed to fetch user for checkin:', checkin.id, userError.message)
+      }
       userEmail = userData?.user?.email
       userName = userData?.user?.user_metadata?.name || 'there'
-    } catch {}
+    } catch (err) {
+      console.error('Exception fetching user for checkin:', checkin.id, err.message)
+    }
 
-    if (!userEmail) continue
+    if (!userEmail) {
+      console.error('Skipping checkin — no email found for user_id:', checkin.user_id)
+      continue
+    }
 
     // Send check-in reminder to user
     await resend.emails.send({
