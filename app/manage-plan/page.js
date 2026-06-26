@@ -211,7 +211,13 @@ export default function ManagePlan() {
                 </div>
               </div>
 
-              {percentUsed >= 90 && (
+              {usedBytes > limitBytes && (
+                <p className="text-xs text-red-600 font-medium mt-3 bg-red-50 border border-red-200 rounded-lg p-2">
+                  ⚠️ You're using {(usedBytes / 1024 / 1024 / 1024).toFixed(2)}GB, which is over your current {currentPlan} plan's {limitGB}GB limit.
+                  Your existing capsules are safe and won't be deleted, but you can't add new audio/video until you free up space or upgrade.
+                </p>
+              )}
+              {usedBytes <= limitBytes && percentUsed >= 90 && (
                 <p className="text-xs text-red-500 mt-3">
                   ⚠️ Almost full! Delete old capsules or upgrade your plan.
                 </p>
