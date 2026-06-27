@@ -7,7 +7,7 @@ const supabase = createClient(
 
 export async function POST(request) {
   try {
-    const { userId, fileType, fileSize } = await request.json()
+    const { userId, fileType, fileSize, isLegacy } = await request.json()
 
     if (!userId || !fileType || !fileSize) {
       return Response.json({ error: 'Missing fields' }, { status: 400 })
@@ -17,7 +17,27 @@ export async function POST(request) {
       return Response.json({ success: true })
     }
 
-    // Update storage usage
+    // ✅ Legacy uploads track storage in legacy_plans, never in storage_usage
+    if (isLegacy) {
+      const { data: legacyPlan } = await supabase
+        .from('legacy_plans')
+        .select('storage_used_bytes')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single()
+
+      const newUsed = (legacyPlan?.storage_used_bytes || 0) + fileSize
+
+      await supabase
+        .from('legacy_plans')
+        .update({ storage_used_bytes: newUsed })
+        .eq('user_id', userId)
+        .eq('status', 'active')
+
+      return Response.json({ success: true })
+    }
+
+    // Regular (Loved/Forever) storage tracking — unchanged
     const { data: existing } = await supabase
       .from('storage_usage')
       .select('*')

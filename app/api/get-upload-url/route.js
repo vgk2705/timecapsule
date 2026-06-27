@@ -26,7 +26,6 @@ export async function POST(request) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Check individual file size
     const fileSizeLimit = FILE_SIZE_LIMITS[fileType] || FILE_SIZE_LIMITS.audio
     if (fileSize > fileSizeLimit) {
       return Response.json({
@@ -34,15 +33,28 @@ export async function POST(request) {
       }, { status: 400 })
     }
 
-    // Check total storage for media files
+    // ✅ Check total storage — legacy uses its own dedicated column, others use storage_usage
     if (fileType !== 'proof') {
-      const { data: storageData } = await supabase
-        .from('storage_usage')
-        .select('total_bytes')
-        .eq('user_id', userId)
-        .single()
+      const isLegacy = plan === 'legacy'
+      let used = 0
 
-      const used = storageData?.total_bytes || 0
+      if (isLegacy) {
+        const { data: legacyData } = await supabase
+          .from('legacy_plans')
+          .select('storage_used_bytes')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .single()
+        used = legacyData?.storage_used_bytes || 0
+      } else {
+        const { data: storageData } = await supabase
+          .from('storage_usage')
+          .select('total_bytes')
+          .eq('user_id', userId)
+          .single()
+        used = storageData?.total_bytes || 0
+      }
+
       const limit = STORAGE_LIMITS[plan] || STORAGE_LIMITS.loved
 
       if (used + fileSize > limit) {
@@ -54,7 +66,6 @@ export async function POST(request) {
       }
     }
 
-    // Generate file key
     const ext = fileName.split('.').pop()
     const timestamp = Date.now()
     const key = fileType === 'proof'
@@ -65,11 +76,10 @@ export async function POST(request) {
       ? process.env.CLOUDFLARE_R2_BUCKET_PROOFS
       : process.env.CLOUDFLARE_R2_BUCKET_MEDIA
 
-    // Generate presigned URL valid for 1 hour
     const presignedUrl = await getPresignedUploadUrl(bucket, key, contentType)
 
     const publicUrl = fileType === 'proof'
-      ? null // proofs are private
+      ? null
       : `${process.env.CLOUDFLARE_R2_PUBLIC_URL}/${key}`
 
     return Response.json({

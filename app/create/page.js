@@ -312,7 +312,7 @@ export default function CreateCapsule() {
     setMsg('Confirming upload...')
     await fetch('/api/confirm-upload', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id, fileType: messageType, fileSize: file.size }),
+      body: JSON.stringify({ userId: user.id, fileType: messageType, fileSize: file.size, isLegacy: isLegacyMode }),
     })
     return { url: urlData.publicUrl, fileName: file.name, fileSize: file.size }
   }
