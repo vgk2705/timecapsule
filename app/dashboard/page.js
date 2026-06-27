@@ -22,7 +22,7 @@ export default function Dashboard() {
   const [filterDate, setFilterDate] = useState('all')
   const [showFilters, setShowFilters] = useState(false)
 
-  // ✅ Dropdown menu state
+  // Dropdown menu state
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef(null)
 
@@ -45,7 +45,6 @@ export default function Dashboard() {
       .catch(() => {})
   }, [])
 
-  // ✅ Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -144,7 +143,7 @@ export default function Dashboard() {
             userId: user.id,
             fileSize: capsule.media_file_size,
             mediaType: capsule.media_type,
-            isLegacy: capsule.is_legacy, // ✅ NEW — tells API which storage table to update
+            isLegacy: capsule.is_legacy,
           })
         })
       }
@@ -175,7 +174,6 @@ export default function Dashboard() {
     window.location.href = '/'
   }
 
-  // Filter logic
   const getFilteredCapsules = () => {
     let filtered = [...capsules]
 
@@ -273,7 +271,6 @@ export default function Dashboard() {
               </span>
             )}
 
-            {/* ✅ Three-dot dropdown menu */}
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setShowMenu(!showMenu)}
@@ -619,13 +616,20 @@ export default function Dashboard() {
             {filteredCapsules.map(capsule => {
               const hasPayment = capsulePayments[capsule.id]
               const isMediaCapsule = capsule.media_type === 'audio' || capsule.media_type === 'video'
-              const isTextCapsule = !capsule.media_type && !capsule.is_legacy
+              // ✅ Detect expired/deleted media capsules (file removed after grace period)
+              const isExpiredMedia = !capsule.media_type && (
+                capsule.message?.startsWith('[Audio message expired') ||
+                capsule.message?.startsWith('[Video message expired')
+              )
+              const isTextCapsule = !capsule.media_type && !capsule.is_legacy && !isExpiredMedia
 
               return (
                 <div key={capsule.id} className={`bg-white rounded-2xl p-4 md:p-6 shadow-sm ${
                   capsule.is_legacy ? 'border-l-4 border-purple-400' : ''
                 } ${
                   cancelledSub && isMediaCapsule ? 'border border-orange-200' : ''
+                } ${
+                  isExpiredMedia ? 'opacity-60' : ''
                 }`}>
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -666,7 +670,9 @@ export default function Dashboard() {
                         </div>
                       ) : (
                         <div>
-                          <p className="text-gray-700 text-sm line-clamp-2 break-words">{capsule.message}</p>
+                          <p className={`text-sm line-clamp-2 break-words ${isExpiredMedia ? 'text-gray-400 italic' : 'text-gray-700'}`}>
+                            {capsule.message}
+                          </p>
                           {isMediaCapsule && capsule.media_file_name && (
                             <p className="text-xs text-gray-400 mt-1">
                               📁 {capsule.media_file_name}
@@ -685,12 +691,15 @@ export default function Dashboard() {
                     <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-0 flex-shrink-0">
                       <div className="sm:text-right">
                         <span className={`inline-block text-xs px-3 py-1 rounded-full mb-1 ${
+                          isExpiredMedia ? 'bg-gray-200 text-gray-600' :
                           capsule.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                         }`}>
-                          {capsule.status === 'delivered' ? '✅ Delivered' : '🔒 Locked'}
+                          {isExpiredMedia ? '🗑️ Removed' : capsule.status === 'delivered' ? '✅ Delivered' : '🔒 Locked'}
                         </span>
                         <p className="text-xs text-gray-400 mb-1">
-                          {capsule.is_legacy
+                          {isExpiredMedia
+                            ? '🗑️ File deleted — grace period ended'
+                            : capsule.is_legacy
                             ? '👻 Delivered after passing'
                             : `${capsule.status === 'delivered' ? 'Delivered on' : 'Unlocks'} ${capsule.unlock_date}`
                           }
@@ -703,7 +712,7 @@ export default function Dashboard() {
                         </p>
                       </div>
 
-                      {capsule.status === 'locked' && editingId !== capsule.id && (
+                      {capsule.status === 'locked' && !isExpiredMedia && editingId !== capsule.id && (
                         <div className="flex gap-2">
                           {isTextCapsule && !hasPayment && !capsule.is_legacy && (
                             <button onClick={() => { setEditingId(capsule.id); setEditMessage(capsule.message) }}
@@ -716,6 +725,14 @@ export default function Dashboard() {
                             {deleting === capsule.id ? '...' : '🗑️ Delete'}
                           </button>
                         </div>
+                      )}
+
+                      {/* ✅ Expired media — only "Remove from list" option, no Edit */}
+                      {isExpiredMedia && editingId !== capsule.id && (
+                        <button onClick={() => handleDelete(capsule)} disabled={deleting === capsule.id}
+                          className="text-xs text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1 rounded-lg transition">
+                          {deleting === capsule.id ? '...' : 'Remove from list'}
+                        </button>
                       )}
                     </div>
                   </div>
