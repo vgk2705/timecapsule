@@ -135,17 +135,27 @@ export default function Dashboard() {
 
     try {
       if (capsule.media_url) {
-        await fetch('/api/delete-media', {
+        // ✅ Extract key robustly — find "media/" in the URL instead of relying on exact env var match
+        const mediaIndex = capsule.media_url.indexOf('media/')
+        const key = mediaIndex !== -1 ? capsule.media_url.substring(mediaIndex) : capsule.media_url
+
+        const deleteRes = await fetch('/api/delete-media', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            key: capsule.media_url.replace(process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL + '/', ''),
+            key,
             userId: user.id,
             fileSize: capsule.media_file_size,
             mediaType: capsule.media_type,
             isLegacy: capsule.is_legacy,
           })
         })
+
+        const deleteResult = await deleteRes.json().catch(() => ({}))
+        if (deleteResult.error) {
+          console.error('R2 delete warning:', deleteResult.error)
+          // Don't block capsule deletion from DB even if R2 delete had an issue — but log it for investigation
+        }
       }
 
       if (hasPayment) {

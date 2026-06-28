@@ -10,10 +10,28 @@ export async function POST(request) {
   try {
     const { key, userId, fileSize, mediaType, isLegacy } = await request.json()
 
-    await deleteFromR2(process.env.CLOUDFLARE_R2_BUCKET_MEDIA, key)
+    if (!key) {
+      console.error('Delete media called with no key — skipping R2 delete')
+      return Response.json({ error: 'Missing file key' }, { status: 400 })
+    }
+
+    // ✅ Safety check — if key still looks like a full URL, the prefix strip failed upstream
+    if (key.startsWith('http')) {
+      console.error('Delete media received a full URL instead of a key:', key)
+      return Response.json({ error: 'Invalid key format — received full URL instead of path' }, { status: 400 })
+    }
+
+    console.log('Deleting R2 object — bucket:', process.env.CLOUDFLARE_R2_BUCKET_MEDIA, 'key:', key)
+
+    try {
+      await deleteFromR2(process.env.CLOUDFLARE_R2_BUCKET_MEDIA, key)
+      console.log('R2 delete succeeded for key:', key)
+    } catch (r2Error) {
+      console.error('R2 delete FAILED for key:', key, r2Error.message)
+      // Continue anyway to still decrement storage counters, but log clearly
+    }
 
     if (isLegacy) {
-      // Decrement legacy_plans storage
       const { data: legacyPlan } = await supabase
         .from('legacy_plans')
         .select('storage_used_bytes')
@@ -27,9 +45,9 @@ export async function POST(request) {
           .from('legacy_plans')
           .update({ storage_used_bytes: newUsed })
           .eq('user_id', userId)
+          .eq('status', 'active')
       }
     } else {
-      // Decrement regular storage_usage
       const { data: usage } = await supabase
         .from('storage_usage')
         .select('*')
