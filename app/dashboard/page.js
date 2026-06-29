@@ -629,7 +629,9 @@ export default function Dashboard() {
               // ✅ Detect expired/deleted media capsules (file removed after grace period)
               const isExpiredMedia = !capsule.media_type && (
                 capsule.message?.startsWith('[Audio message expired') ||
-                capsule.message?.startsWith('[Video message expired')
+                capsule.message?.startsWith('[Video message expired') ||
+                capsule.message?.startsWith('[Audio message — delivered and archived') ||
+                capsule.message?.startsWith('[Video message — delivered and archived')
               )
               const isTextCapsule = !capsule.media_type && !capsule.is_legacy && !isExpiredMedia
 

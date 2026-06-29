@@ -26,7 +26,7 @@ async function sendCapsuleEmail(capsule, recipientName, recipientEmail) {
         <a href="${capsule.media_url}" style="display:inline-block;background:#22c55e;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
           🎵 Listen to Audio Message
         </a>
-        <p style="color:#9ca3af;font-size:12px;margin-top:12px;">Click the button above to listen.</p>
+        <p style="color:#9ca3af;font-size:12px;margin-top:12px;">Click the button above to listen. Save it soon — this link expires in 30 days.</p>
       </div>
     `
   } else if (capsule.media_type === 'video' && capsule.media_url) {
@@ -38,7 +38,7 @@ async function sendCapsuleEmail(capsule, recipientName, recipientEmail) {
         <a href="${capsule.media_url}" style="display:inline-block;background:#3b82f6;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
           🎥 Watch Video Message
         </a>
-        <p style="color:#9ca3af;font-size:12px;margin-top:12px;">Click the button above to watch.</p>
+        <p style="color:#9ca3af;font-size:12px;margin-top:12px;">Click the button above to watch. Save it soon — this link expires in 30 days.</p>
       </div>
     `
   }
@@ -105,13 +105,11 @@ export async function GET(request) {
   for (const capsule of capsules) {
     const allRecipients = []
 
-    // Primary recipient
     allRecipients.push({
       name: capsule.recipient_name,
       email: capsule.recipient_email,
     })
 
-    // Additional recipients (Forever plan)
     if (capsule.recipients && Array.isArray(capsule.recipients)) {
       for (const r of capsule.recipients) {
         if (r.email && r.email !== capsule.recipient_email) {
@@ -130,9 +128,10 @@ export async function GET(request) {
     }
 
     if (allSent) {
+      // ✅ Track delivered_at for future storage-reclaim cleanup
       await supabase
         .from('capsules')
-        .update({ status: 'delivered' })
+        .update({ status: 'delivered', delivered_at: new Date().toISOString() })
         .eq('id', capsule.id)
       sent++
     }

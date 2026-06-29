@@ -8,5 +8,6 @@
     { "path": "/api/send-capsules", "schedule": "0 18 * * *" },
     { "path": "/api/check-legacy-checkins", "schedule": "0 7 * * *" },
     { "path": "/api/check-expired-subscriptions", "schedule": "0 9 * * *" }
+    { "path": "/api/reclaim-delivered-storage", "schedule": "0 4 * * *" }
   ]
 }

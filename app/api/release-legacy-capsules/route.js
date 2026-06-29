@@ -104,6 +104,7 @@ export async function POST(request) {
           .update({
             status: 'delivered',
             legacy_delivered_at: new Date().toISOString(),
+            delivered_at: new Date().toISOString(), // ✅ unified field used by storage-reclaim cron
           })
           .eq('id', capsule.id)
 
