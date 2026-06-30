@@ -352,6 +352,16 @@ export default function CreateCapsule() {
 
   const handleSubmit = async () => {
     setLoading(true)
+
+    // ✅ Rate limit check before creating capsule
+    const limitRes = await fetch('/api/check-capsule-limit', { method: 'POST' })
+    const limitData = await limitRes.json()
+    if (!limitData.allowed) {
+      alert(limitData.error || 'Too many capsules created recently. Please try again later.')
+      setLoading(false)
+      return
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
     let mediaUrl = null, mediaFileName = null, mediaFileSize = null
     const fileToUpload = messageType === 'audio' ? audioFile : messageType === 'video' ? videoFile : null

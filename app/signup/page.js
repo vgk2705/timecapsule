@@ -24,6 +24,16 @@ export default function Signup() {
     if (!consent) { setError('Please agree to the Terms of Service and Privacy Policy.'); return }
 
     setLoading(true)
+
+    // ✅ Check rate limit before allowing signup attempt
+    const limitRes = await fetch('/api/check-signup-limit', { method: 'POST' })
+    const limitData = await limitRes.json()
+    if (!limitData.allowed) {
+      setError(limitData.error || 'Too many attempts. Please try again later.')
+      setLoading(false)
+      return
+    }
+
     const { error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
