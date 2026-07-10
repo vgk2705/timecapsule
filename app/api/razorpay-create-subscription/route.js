@@ -13,10 +13,10 @@ const supabase = createClient(
 
 // Plan IDs from Razorpay
 const PLAN_IDS = {
-  loved_monthly: 'plan_St72dMAHB0gHKt',
-  loved_yearly: 'plan_St74Dk8kUxd0Zr',
-  forever_monthly: 'plan_St7568rdtfILVz',
-  forever_yearly: 'plan_St762JJy6uhmzW',
+  loved_monthly: 'plan_TBmqutP0nsJljR',
+  loved_yearly: 'plan_TBmsTD8e5v4iA6',
+  forever_monthly: 'plan_TBmstMNHu1V6EZ',
+  forever_yearly: 'plan_TBmtABOADrYEdb',
 }
 
 export async function POST(request) {

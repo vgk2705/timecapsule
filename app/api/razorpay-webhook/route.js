@@ -9,10 +9,10 @@ const supabase = createClient(
 )
 
 const PLAN_MAP = {
-  'plan_St72dMAHB0gHKt': { plan: 'loved', billing_period: 'monthly' },
-  'plan_St74Dk8kUxd0Zr': { plan: 'loved', billing_period: 'yearly' },
-  'plan_St7568rdtfILVz': { plan: 'forever', billing_period: 'monthly' },
-  'plan_St762JJy6uhmzW': { plan: 'forever', billing_period: 'yearly' },
+  'plan_TBmqutP0nsJljR': { plan: 'loved', billing_period: 'monthly' },
+  'plan_TBmsTD8e5v4iA6': { plan: 'loved', billing_period: 'yearly' },
+  'plan_TBmstMNHu1V6EZ': { plan: 'forever', billing_period: 'monthly' },
+  'plan_TBmtABOADrYEdb': { plan: 'forever', billing_period: 'yearly' },
 }
 
 async function getUserEmail(userId) {
