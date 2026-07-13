@@ -91,7 +91,7 @@ export default function CreateCapsule() {
   const [currentPlan, setCurrentPlan] = useState('free')
   const [capsuleCount, setCapsuleCount] = useState(0)
   const [limitReached, setLimitReached] = useState(false)
-  const [isIndia, setIsIndia] = useState(false)
+  const [isIndia, setIsIndia] = useState(true)
   const [audioFile, setAudioFile] = useState(null)
   const [videoFile, setVideoFile] = useState(null)
   const [userId, setUserId] = useState(null)

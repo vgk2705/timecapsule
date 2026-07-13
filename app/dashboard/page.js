@@ -11,7 +11,7 @@ export default function Dashboard() {
   const [deleting, setDeleting] = useState(null)
   const [subscription, setSubscription] = useState(null)
   const [legacyPlan, setLegacyPlan] = useState(null)
-  const [isIndia, setIsIndia] = useState(false)
+  const [isIndia, setIsIndia] = useState(true)
   const [cancelledSub, setCancelledSub] = useState(null)
   const [capsulePayments, setCapsulePayments] = useState({})
 

@@ -52,7 +52,7 @@ export default function PricingPage() {
   const router = useRouter()
   const [period, setPeriod] = useState('monthly')
   const [user, setUser] = useState(null)
-  const [isIndia, setIsIndia] = useState(false)
+  const [isIndia, setIsIndia] = useState(true)
   const [currency, setCurrency] = useState({ symbol: '€', code: 'EUR', country: '' })
   const [locationLoaded, setLocationLoaded] = useState(false)
 
