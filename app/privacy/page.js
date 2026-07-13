@@ -29,7 +29,7 @@ export default function PrivacyPolicy() {
               <li>Your relationship to the recipient</li>
               <li>Message content (text, and in future audio/video)</li>
               <li>Unlock date for each capsule</li>
-              <li>Payment information (processed securely by Lemon Squeezy — we never store card details)</li>
+              <li>Payment information (processed securely by Razorpay  — we never store card details)</li>
               <li>Support ticket content</li>
             </ul>
           </section>
@@ -64,7 +64,7 @@ export default function PrivacyPolicy() {
               <li><strong>Supabase</strong> — database and authentication (EU servers)</li>
               <li><strong>Resend</strong> — email delivery service</li>
               <li><strong>Vercel</strong> — hosting provider</li>
-              <li><strong>Lemon Squeezy</strong> — payment processing</li>
+              <li><strong>Razorpay </strong> — payment processing</li>
             </ul>
             <p className="mt-2">We never sell your personal data to third parties.</p>
           </section>

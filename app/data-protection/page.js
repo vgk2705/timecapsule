@@ -25,7 +25,7 @@ export default function DataProtection() {
                 { icon: '💌', label: 'Capsule message content' },
                 { icon: '❤️', label: 'Your relationship to recipient' },
                 { icon: '📅', label: 'Capsule unlock dates' },
-                { icon: '💳', label: 'Payment info (via Lemon Squeezy, not stored by us)' },
+                { icon: '💳', label: 'Payment info (via Razorpay, not stored by us)' },
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-3 bg-amber-50 rounded-xl p-3">
                   <span className="text-xl">{item.icon}</span>
@@ -47,7 +47,7 @@ export default function DataProtection() {
                 '✅ Email verification required before account activation',
                 '✅ Passwords hashed and never stored in plain text',
                 '✅ No advertising or tracking cookies used',
-                '✅ Payment data never stored — handled by Lemon Squeezy',
+                '✅ Payment data never stored — handled by Razorpay',
                 '✅ Access to personal data strictly limited to authorized personnel',
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-2">{item}</li>
@@ -110,7 +110,7 @@ export default function DataProtection() {
                 { name: 'Supabase', role: 'Database & Authentication', location: '🇪🇺 EU' },
                 { name: 'Vercel', role: 'Hosting & Deployment', location: '🌍 Global CDN' },
                 { name: 'Resend', role: 'Email Delivery', location: '🇺🇸 US (GDPR compliant)' },
-                { name: 'Lemon Squeezy', role: 'Payment Processing', location: '🌍 Global' },
+                { name: 'Razorpay', role: 'Payment Processing', location: '🌏 India & Global' },
               ].map((item, i) => (
                 <div key={i} className="flex justify-between items-center bg-gray-50 rounded-xl px-4 py-3">
                   <div>
