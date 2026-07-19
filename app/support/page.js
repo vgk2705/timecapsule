@@ -65,17 +65,21 @@ export default function SupportPage() {
 
   return (
     <div className="min-h-screen bg-amber-50 flex flex-col">
-      {/* Navbar */}
-      <nav className="flex justify-between items-center px-6 py-5 max-w-4xl mx-auto w-full">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
-          <span className="text-2xl">⏳</span>
-          <span className="text-xl font-semibold text-amber-900">TimeCapsule</span>
+      {/* Header */}
+      <header className="px-4 md:px-6 py-4 border-b border-amber-100 bg-amber-50">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">⏳</span>
+            <span className="text-lg font-semibold text-amber-900">TimeCapsule</span>
+          </div>
+          {/* nav links top right */}
+          <div className="flex items-center gap-3">
+            <a href="/dashboard" className="text-sm text-amber-600 hover:text-amber-700 font-medium">Dashboard</a>
+            <a href="/admin/analytics" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Analytics</a>
+            <a href="/admin/legacy" className="text-sm text-gray-500 hover:text-gray-700 font-medium">Legacy</a>
+          </div>
         </div>
-        <button onClick={() => router.push('/dashboard')}
-          className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
-          Dashboard
-        </button>
-      </nav>
+      </header>
 
       <div className="flex-1 max-w-2xl mx-auto w-full px-6 py-10">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Support</h1>
