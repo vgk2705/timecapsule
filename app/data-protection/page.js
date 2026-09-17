@@ -107,10 +107,11 @@ export default function DataProtection() {
             <h2 className="text-lg font-bold text-gray-800 mb-3">Third party services we use</h2>
             <div className="space-y-3 text-sm">
               {[
-                { name: 'Supabase', role: 'Database & Authentication', location: '🇪🇺 EU' },
-                { name: 'Vercel', role: 'Hosting & Deployment', location: '🌍 Global CDN' },
-                { name: 'Resend', role: 'Email Delivery', location: '🇺🇸 US (GDPR compliant)' },
-                { name: 'Razorpay', role: 'Payment Processing', location: '🌏 India & Global' },
+                { name: 'Cloud Database Provider', role: 'Database & Authentication', location: 'EU/US' },
+                { name: 'Email Delivery Provider', role: 'Transactional Email', location: 'Global' },
+                { name: 'Cloud Hosting Provider', role: 'Application Hosting & CDN', location: 'Global' },
+                { name: 'Payment Processor', role: 'Payment Processing (PCI-DSS)', location: 'India & Global' },
+                { name: 'Object Storage Provider', role: 'File & Media Storage', location: 'Global' },
               ].map((item, i) => (
                 <div key={i} className="flex justify-between items-center bg-gray-50 rounded-xl px-4 py-3">
                   <div>
