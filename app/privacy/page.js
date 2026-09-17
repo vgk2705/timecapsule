@@ -58,27 +58,17 @@ export default function PrivacyPolicy() {
           </section>
 
           <section>
-            <h2>5. Who We Share Your Data With</h2>
-            <p>
-              We share your data only with trusted third-party service providers 
-              necessary to operate TimeCapsule. These fall into the following categories:
-            </p>
-            <ul>
-              <li><strong>Database & Authentication:</strong> Your account data and capsule content is stored securely on cloud infrastructure hosted in the EU/US.</li>
+            <h2 className="text-lg font-bold text-gray-800 mb-3">5. Who We Share Your Data With</h2>
+            <p>We share your data only with trusted third-party service providers necessary to operate TimeCapsule. These fall into the following categories:</p>
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+              <li><strong>Database &amp; Authentication:</strong> Your account data and capsule content is stored securely on cloud infrastructure hosted in the EU/US.</li>
               <li><strong>Email Delivery:</strong> We use a transactional email provider to send you confirmation emails, capsule delivery notifications, and system alerts.</li>
-              <li><strong>Hosting & Infrastructure:</strong> Our application is hosted on a cloud platform with global CDN capabilities.</li>
+              <li><strong>Hosting &amp; Infrastructure:</strong> Our application is hosted on a cloud platform with global CDN capabilities.</li>
               <li><strong>Payment Processing:</strong> Payment information is handled by a PCI-DSS compliant payment processor. We never store your card details.</li>
               <li><strong>File Storage:</strong> Audio and video capsules are stored in encrypted cloud object storage.</li>
             </ul>
-            <p>
-              We never sell your personal data to third parties. All service providers 
-              are bound by data processing agreements and are required to handle your 
-              data in accordance with applicable privacy laws.
-            </p>
-            <p>
-              You may request the full list of our data processors by contacting us at{' '}
-              <a href="mailto:supportmytimecapsule@gmail.com">supportmytimecapsule@gmail.com</a>.
-            </p>
+            <p className="mt-2">We never sell your personal data to third parties. All service providers are bound by data processing agreements and are required to handle your data in accordance with applicable privacy laws.</p>
+            <p className="mt-2">You may request the full list of our data processors by contacting us at <a href="mailto:supportmytimecapsule@gmail.com" className="text-amber-600">supportmytimecapsule@gmail.com</a>.</p>
           </section>
 
           <section>
