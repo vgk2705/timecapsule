@@ -1,7 +1,9 @@
+import AudienceStories from "./components/AudienceStories";
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white">
-      
+
       {/* Header */}
       <header className="px-6 py-5 flex items-center justify-between max-w-4xl mx-auto">
         <div className="flex items-center gap-2">
@@ -9,32 +11,32 @@ export default function Home() {
           <span className="text-xl font-semibold text-amber-900">TimeCapsule</span>
         </div>
         <div className="flex items-center gap-4">
-        <a href="/pricing" className="text-sm text-gray-500 hover:text-gray-700 font-medium">
-        Pricing
-        </a>
-        <a href="/login" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
-        Get Started
-        </a>
+          <a href="/pricing" className="text-sm text-gray-500 hover:text-gray-700 font-medium">
+            Pricing
+          </a>
+          <a href="/login" className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">
+            Get Started
+          </a>
         </div>
       </header>
 
       {/* Hero */}
       <main className="max-w-4xl mx-auto px-6 py-20 text-center">
-        <p className="text-amber-600 font-medium mb-4">For parents. For children. For the future.</p>
+        <p className="text-amber-600 font-medium mb-4">For parents, children, couples and friends.</p>
         <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
           Leave a message for<br />the moments that matter
         </h1>
         <p className="text-xl text-gray-500 mb-10 max-w-2xl mx-auto">
-          Record a video, voice note, or write a letter — and deliver it to your child 
-          exactly when they need it most. On their 18th birthday. Their wedding day. Whenever you choose.
+          Record a video, voice note, or write a letter — and deliver it exactly when it matters most.
+          A child's 18th birthday. A thank-you to your parents. An anniversary surprise. Whenever you choose.
         </p>
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center flex-wrap">
           <a href="/login" className="bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-full text-lg font-medium transition">
             Create your first capsule
           </a>
-          <button className="border border-gray-300 hover:border-gray-400 text-gray-600 px-8 py-4 rounded-full text-lg transition">
+          <a href="#stories" className="border border-gray-300 hover:border-gray-400 text-gray-600 px-8 py-4 rounded-full text-lg transition">
             See how it works
-          </button>
+          </a>
         </div>
       </main>
 
@@ -57,16 +59,19 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Who is it for */}
+      <AudienceStories />
+
       {/* Footer */}
       <footer className="text-center py-8 text-gray-400 text-sm">
-       <div className="flex justify-center gap-6 mb-3">
-       <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
-       <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
-       <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
-      </div>
-      © 2026 TimeCapsule · Made with love for families
+        <div className="flex justify-center gap-6 mb-3">
+          <a href="/privacy" className="hover:text-amber-600 transition">Privacy Policy</a>
+          <a href="/terms" className="hover:text-amber-600 transition">Terms of Service</a>
+          <a href="/data-protection" className="hover:text-amber-600 transition">Data Protection</a>
+        </div>
+        © 2026 TimeCapsule · Made with love for families
       </footer>
 
     </div>
-  )
+  );
 }
